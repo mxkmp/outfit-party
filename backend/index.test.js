@@ -1,37 +1,40 @@
 const request = require('supertest');
 
-// Mock Google Cloud Storage before requiring the main module
-jest.mock('@google-cloud/storage', () => {
-  const mockFile = {
-    createWriteStream: jest.fn().mockImplementation(() => {
-      const stream = require('stream').PassThrough();
-      // Simulate successful upload by emitting finish event
-      setTimeout(() => {
-        stream.emit('finish');
-      }, 10);
-      return stream;
-    }),
-    makePublic: jest.fn().mockResolvedValue(),
-    delete: jest.fn().mockResolvedValue()
-  };
+// Only mock Google Cloud Storage for local tests (not when USE_REAL_GCS=true)
+if (process.env.USE_REAL_GCS !== 'true') {
+  // Mock Google Cloud Storage before requiring the main module
+  jest.mock('@google-cloud/storage', () => {
+    const mockFile = {
+      createWriteStream: jest.fn().mockImplementation(() => {
+        const stream = require('stream').PassThrough();
+        // Simulate successful upload by emitting finish event
+        setTimeout(() => {
+          stream.emit('finish');
+        }, 10);
+        return stream;
+      }),
+      makePublic: jest.fn().mockResolvedValue(),
+      delete: jest.fn().mockResolvedValue()
+    };
 
-  const mockBucket = {
-    file: jest.fn(() => mockFile)
-  };
+    const mockBucket = {
+      file: jest.fn(() => mockFile)
+    };
 
-  const mockStorage = {
-    bucket: jest.fn(() => mockBucket)
-  };
+    const mockStorage = {
+      bucket: jest.fn(() => mockBucket)
+    };
 
-  return {
-    Storage: jest.fn(() => mockStorage)
-  };
-});
+    return {
+      Storage: jest.fn(() => mockStorage)
+    };
+  });
 
-// Mock uuid to have predictable IDs for testing
-jest.mock('uuid', () => ({
-  v4: jest.fn(() => 'test-uuid-123')
-}));
+  // Mock uuid to have predictable IDs for testing
+  jest.mock('uuid', () => ({
+    v4: jest.fn(() => 'test-uuid-123')
+  }));
+}
 
 describe('Outfit Voting API', () => {
   let app;

@@ -8,7 +8,11 @@
     "deploy": "gcloud functions deploy outfit-voting --runtime nodejs18 --trigger http --allow-unauthenticated --memory 256MB --timeout 30s --region europe-west3",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:cloud": "USE_REAL_GCS=true jest --testPathPatterns=cloud",
+    "test:cloud:watch": "USE_REAL_GCS=true jest --watch --testPathPatterns=cloud",
+    "test:local": "jest --testPathPatterns=test.js$",
+    "test:all": "npm run test:local && npm run test:cloud"
   },
   "dependencies": {
     "@google-cloud/functions-framework": "^3.3.0",
@@ -20,18 +24,6 @@
   },
   "engines": {
     "node": "18"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "coverageDirectory": "coverage",
-    "collectCoverageFrom": [
-      "*.js",
-      "!coverage/**"
-    ],
-    "testMatch": [
-      "**/__tests__/**/*.js",
-      "**/*.test.js"
-    ]
   },
   "devDependencies": {
     "jest": "^30.0.5",
