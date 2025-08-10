@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Outfit-Voting</title>
+    
+    <!-- Material Design 3 -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+    <div id="adminApp" class="admin-app">
+        <!-- Login Screen -->
+        <div id="loginScreen" class="login-screen">
+            <div class="login-card">
+                <h1>Admin Login</h1>
+                <div class="text-field">
+                    <input type="password" id="adminPassword" placeholder=" ">
+                    <label for="adminPassword">Admin Passwort</label>
+                </div>
+                <button id="loginBtn" class="button button--filled">
+                    <span class="material-icons">login</span>
+                    Anmelden
+                </button>
+                <div id="loginError" class="error-message"></div>
+            </div>
+        </div>
+
+        <!-- Admin Dashboard -->
+        <div id="adminDashboard" class="admin-dashboard" style="display: none;">
+            <!-- Header -->
+            <header class="admin-header">
+                <div class="admin-header__content">
+                    <h1>Admin Dashboard</h1>
+                    <div class="admin-header__actions">
+                        <button id="logoutBtn" class="button button--outlined">
+                            <span class="material-icons">logout</span>
+                            Abmelden
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content -->
+            <main class="admin-main">
+                <!-- Statistics Cards -->
+                <section class="stats-section">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-card__icon">
+                                <span class="material-icons">photo</span>
+                            </div>
+                            <div class="stat-card__content">
+                                <div class="stat-card__value" id="totalUploads">0</div>
+                                <div class="stat-card__label">Uploads</div>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-card__icon">
+                                <span class="material-icons">how_to_vote</span>
+                            </div>
+                            <div class="stat-card__content">
+                                <div class="stat-card__value" id="totalVotes">0</div>
+                                <div class="stat-card__label">Stimmen</div>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-card__icon">
+                                <span class="material-icons">people</span>
+                            </div>
+                            <div class="stat-card__content">
+                                <div class="stat-card__value" id="uniqueVoters">0</div>
+                                <div class="stat-card__label">Wähler</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Controls Section -->
+                <section class="controls-section">
+                    <div class="card">
+                        <h2 class="card__title">Event Kontrolle</h2>
+                        
+                        <div class="controls-grid">
+                            <div class="control-item">
+                                <label class="switch">
+                                    <input type="checkbox" id="uploadsEnabled">
+                                    <span class="slider"></span>
+                                </label>
+                                <div class="control-label">
+                                    <strong>Uploads erlauben</strong>
+                                    <p>Nutzer können Outfits hochladen</p>
+                                </div>
+                            </div>
+                            
+                            <div class="control-item">
+                                <label class="switch">
+                                    <input type="checkbox" id="votingEnabled">
+                                    <span class="slider"></span>
+                                </label>
+                                <div class="control-label">
+                                    <strong>Voting aktiviert</strong>
+                                    <p>Nutzer können abstimmen</p>
+                                </div>
+                            </div>
+                            
+                            <div class="control-item">
+                                <button id="endEventBtn" class="button button--outlined">
+                                    <span class="material-icons">event_busy</span>
+                                    Event beenden
+                                </button>
+                                <div class="control-label">
+                                    <strong>Event beenden</strong>
+                                    <p>Alle Funktionen deaktivieren und Daten löschen</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Uploads Management -->
+                <section class="uploads-section">
+                    <div class="card">
+                        <h2 class="card__title">Upload Verwaltung</h2>
+                        <div id="adminGallery" class="admin-gallery">
+                            <!-- Admin gallery items will be inserted here -->
+                        </div>
+                        <div id="noUploadsAdmin" class="no-content">
+                            <span class="material-icons">photo_library</span>
+                            <p>Noch keine Uploads vorhanden</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Voting Results -->
+                <section class="results-section">
+                    <div class="card">
+                        <h2 class="card__title">Voting Ergebnisse</h2>
+                        <div id="adminResults" class="admin-results">
+                            <!-- Results will be inserted here -->
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+
+        <!-- Confirmation Dialog -->
+        <div id="confirmDialog" class="dialog-overlay" style="display: none;">
+            <div class="dialog">
+                <h3 id="confirmTitle">Bestätigung</h3>
+                <p id="confirmMessage">Sind Sie sicher?</p>
+                <div class="dialog-actions">
+                    <button id="confirmCancel" class="button button--outlined">Abbrechen</button>
+                    <button id="confirmOk" class="button button--filled">Bestätigen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/storage.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>

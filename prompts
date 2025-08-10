@@ -1,13 +1,56 @@
-Ich möchte eine Website erstellen, bei der jeder User einmalig ein Bild von sich und seinem Outfit hochladen kann. 
-Das Bild wird mit einem Namen hochgeladen. 
-Das Ziel ist es, dass es am Ende die Möglichkeit gibt, die Outfits zu bewerten und jeder User darf eine Stimme anyonym abgeben. 
-Am Ende wird ausgezählt und der Gewinner ausgelost. 
-Die Abstimmung und das Hochladen soll immer zur Verfügung stehen, insofern noch nichts hochgeladen wurde.
-Das Ranking ebenfalls.
- Die Party ist eine 2000er Party, halte das Design in dem Design von dem damaligen SchülerVZ.
-Stelle sicher das jeder User ein Bild nur einmal hochladen kann. 
-In der ersten Version sollen die Bilder lokal gespeichert werden. 
+## Anforderungsdokument: Outfit-Voting Website
 
+### Grundfunktionalität
+- **Upload-Feature**: Jeder User kann einmalig ein Bild seines Outfits mit einem Namen hochladen
+- **Voting-System**: Jeder User kann für genau ein Outfit abstimmen (ein Vote pro User)
+- **Ranking**: Echtzeit-Anzeige der aktuellen Stimmenverteilung
+- **Gewinner**: Die Person mit den meisten Stimmen gewinnt
 
- Die Webseite soll auf Github Page gespeichert werden. 
-Am Besten verwenden wir dafür Google Cloud Storage
+### Technische Anforderungen
+- **User-Identifikation**: Über IP-Adresse und Cookies (kein Login erforderlich)
+- **Datenspeicherung**: Lokal (erste Version), später Google Cloud Storage
+- **Hosting**: GitHub Pages (mit Berücksichtigung für spätere Cloud-Integration)
+- **Upload-Sperre**: Technische Verhinderung von Mehrfach-Uploads pro User
+- **Vote-Sperre**: Technische Verhinderung von Mehrfach-Abstimmungen pro User
+
+### Design & UX
+- **Design-System**: Material Design 3 (neueste Version)
+- **Mobile-First**: Layout wie eine Handy-App
+- **Galerie-Layout**: Ein Bild pro Reihe in der Galerie
+- **Responsive Design**: Funktioniert auf allen Geräten
+- **Material Components**: Buttons, Cards, Navigation, Forms nach Material Design Guidelines
+
+### Administrationsbereich
+- **Admin-Login**: Passwort-geschützter Bereich für den Administrator
+- **Admin-Link**: Nicht öffentlich zugänglich
+- **Upload-Kontrolle**: Admin kann Uploads global sperren/entsperren
+- **Verwaltungsfunktionen**: Oversight über Uploads und Voting
+- **Content-Moderation**: Admin kann unangemessene Inhalte entfernen
+
+### Zeitmanagement
+- **Event-Ende**: Vom Administrator bestimmbar
+- **Upload-Phasen**: Admin kann Upload-Phase beenden (unabhängig vom Event-Ende)
+- **Echtzeit-Updates**: Live-Ranking während der Abstimmungsphase
+- **Post-Event**: Automatische Löschung der Bilder nach dem Event
+
+### Fehlerbehandlung
+- **Doppel-Upload**: Fehlermeldung bei Versuch eines zweiten Uploads
+- **Gesperrter Upload**: Nutzerfreundliche Meldung wenn Admin Uploads gesperrt hat
+- **Doppel-Vote**: Fehlermeldung bei Versuch einer zweiten Abstimmung
+- **Invalid Files**: Behandlung ungültiger Dateiformate
+
+### Datenschutz & Sicherheit
+- **Anonyme Abstimmung**: Votes sind anonym sichtbar (nicht zurückverfolgbar wer für wen gestimmt hat)
+- **Datenbereinigung**: Bilder werden nach Event-Ende gelöscht
+- **Moderation**: Admin kann unangemessene Inhalte entfernen
+
+### Skalierbarkeit
+- **Cloud-Ready**: Architektur berücksichtigt späteren Wechsel zu Google Cloud Storage
+- **Performance**: Optimiert für gleichzeitige Nutzung durch viele User
+
+### Admin-Funktionen (Detailliert)
+- **Dashboard**: Übersicht über alle Uploads und Votes
+- **Upload-Toggle**: Globaler Schalter zum Aktivieren/Deaktivieren von Uploads
+- **Event-Management**: Start- und Endzeit des Events festlegen
+- **Content-Verwaltung**: Bilder und Namen moderieren/löschen
+- **Statistiken**: Echtzeit-Übersicht über Teilnehmer und Abstimmungen
