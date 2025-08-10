@@ -26,6 +26,9 @@ class OutfitVotingApp {
             // Load data
             await this.loadData();
             
+            // Determine and navigate to appropriate starting page
+            this.navigateToAppropriateStartPage();
+            
             // Start auto-refresh
             this.startAutoRefresh();
             
@@ -45,6 +48,12 @@ class OutfitVotingApp {
         try {
             this.hasVoted = await LocalStorage.hasUserVoted();
             this.hasUploaded = await LocalStorage.hasUserUploaded();
+            
+            // Get user's vote to know which outfit they voted for
+            if (this.hasVoted) {
+                const userVote = await LocalStorage.getUserVote();
+                this.userVotedFor = userVote ? userVote.outfitId : null;
+            }
             
             // Check admin settings
             if (LocalStorage.isEventEnded()) {
@@ -97,6 +106,14 @@ class OutfitVotingApp {
             navItems: document.querySelectorAll('.nav-item'),
             pages: document.querySelectorAll('.page'),
             
+            // Lightbox elements
+            imageLightbox: document.getElementById('imageLightbox'),
+            lightboxBackdrop: document.querySelector('.lightbox-backdrop'),
+            lightboxImage: document.getElementById('lightboxImage'),
+            lightboxName: document.getElementById('lightboxName'),
+            lightboxVoteBtn: document.getElementById('lightboxVoteBtn'),
+            closeLightbox: document.getElementById('closeLightbox'),
+            
             // UI elements
             refreshBtn: document.getElementById('refreshBtn'),
             refreshGalleryBtn: document.getElementById('refreshGalleryBtn'),
@@ -109,6 +126,9 @@ class OutfitVotingApp {
     setupEventListeners() {
         // Navigation
         this.setupNavigation();
+        
+        // Lightbox
+        this.setupLightbox();
         
         // File selection
         this.elements.selectFileBtn.addEventListener('click', () => {
@@ -159,6 +179,33 @@ class OutfitVotingApp {
                 this.refreshData();
             }
         });
+
+        // Handle escape key for lightbox
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.closeLightbox();
+            }
+        });
+    }
+
+    setupLightbox() {
+        // Close lightbox events
+        this.elements.closeLightbox?.addEventListener('click', () => {
+            this.closeLightbox();
+        });
+
+        this.elements.lightboxBackdrop?.addEventListener('click', () => {
+            this.closeLightbox();
+        });
+
+        // Lightbox vote button
+        this.elements.lightboxVoteBtn?.addEventListener('click', () => {
+            const outfitId = this.elements.lightboxVoteBtn.getAttribute('data-outfit-id');
+            if (outfitId) {
+                this.handleVote(outfitId);
+                this.closeLightbox();
+            }
+        });
     }
 
     setupNavigation() {
@@ -168,6 +215,57 @@ class OutfitVotingApp {
                 this.navigateToPage(targetPage);
             });
         });
+    }
+
+    navigateToAppropriateStartPage() {
+        // Check if event has ended
+        if (LocalStorage.isEventEnded()) {
+            this.showEventEndedMessage();
+            return;
+        }
+
+        // Determine appropriate starting page based on user state
+        let targetPage = 'uploadPage'; // Default
+
+        if (this.hasUploaded && this.hasVoted) {
+            // User has uploaded and voted -> show ranking
+            targetPage = 'resultsPage';
+            console.log('User has uploaded and voted -> navigating to results');
+        } else if (this.hasUploaded && !this.hasVoted) {
+            // User has uploaded but not voted -> show gallery for voting
+            targetPage = 'galleryPage';
+            console.log('User has uploaded but not voted -> navigating to gallery');
+        } else if (!this.hasUploaded) {
+            // User hasn't uploaded yet -> show upload page
+            targetPage = 'uploadPage';
+            console.log('User hasn\'t uploaded -> staying on upload page');
+        }
+
+        // Navigate to determined page
+        this.navigateToPage(targetPage);
+        
+        // Show appropriate messages
+        this.showStartPageMessages(targetPage);
+    }
+
+    showStartPageMessages(currentPage) {
+        switch (currentPage) {
+            case 'galleryPage':
+                if (this.hasUploaded && !this.hasVoted) {
+                    Utils.showMessage('uploadMessage', 'Dein Outfit wurde hochgeladen! Jetzt kannst du für andere Outfits abstimmen.', 'success', 4000);
+                }
+                break;
+            case 'resultsPage':
+                if (this.hasUploaded && this.hasVoted) {
+                    Utils.showMessage('uploadMessage', 'Danke für deine Teilnahme! Hier siehst du die aktuellen Ergebnisse.', 'success', 4000);
+                }
+                break;
+            case 'uploadPage':
+                if (!LocalStorage.isUploadsEnabled()) {
+                    Utils.showMessage('uploadMessage', 'Das Hochladen ist derzeit deaktiviert.', 'warning', 4000);
+                }
+                break;
+        }
     }
 
     navigateToPage(pageId) {
@@ -206,6 +304,10 @@ class OutfitVotingApp {
                 break;
             case 'resultsPage':
                 await this.loadResults();
+                break;
+            case 'uploadPage':
+                // Validate upload form on page load
+                this.validateUploadForm();
                 break;
             default:
                 break;
@@ -264,7 +366,7 @@ class OutfitVotingApp {
         const voteCount = LocalStorage.getVoteCountForOutfit(outfit.id);
         
         card.innerHTML = `
-            <img src="${outfit.imageData}" alt="Outfit von ${Utils.sanitizeHTML(outfit.name)}" class="outfit-card__image">
+            <img src="${outfit.imageData}" alt="Outfit von ${Utils.sanitizeHTML(outfit.name)}" class="outfit-card__image" data-outfit='${JSON.stringify({id: outfit.id, name: outfit.name, imageData: outfit.imageData})}'>
             <div class="outfit-card__content">
                 <h3 class="outfit-card__name">${Utils.sanitizeHTML(outfit.name)}</h3>
                 <div class="outfit-card__votes">
@@ -284,6 +386,15 @@ class OutfitVotingApp {
                 </div>
             </div>
         `;
+
+        // Add image click event for lightbox
+        const image = card.querySelector('.outfit-card__image');
+        if (image) {
+            image.addEventListener('click', () => {
+                this.openLightbox(outfit);
+            });
+            image.style.cursor = 'pointer';
+        }
 
         // Add vote event listener
         const voteBtn = card.querySelector('.vote-button');
@@ -392,19 +503,25 @@ class OutfitVotingApp {
         const nameErrors = Utils.validateName(name);
         const fileErrors = ImageUtils.validateFile(file);
         
-        // Check if name is already taken
+        // Check if name is already taken (only if name is valid)
         if (name && nameErrors.length === 0 && Utils.isNameTaken(name)) {
             nameErrors.push('Dieser Name ist bereits vergeben');
         }
         
         const isValid = nameErrors.length === 0 && fileErrors.length === 0;
-        this.elements.uploadBtn.disabled = !isValid;
         
-        // Show validation errors
-        if (nameErrors.length > 0 || fileErrors.length > 0) {
+        // Only disable button if there are actual errors, not just empty fields
+        if (this.elements.uploadBtn) {
+            this.elements.uploadBtn.disabled = !isValid;
+        }
+        
+        // Only show validation errors if user has interacted with the form
+        const hasUserInput = name.length > 0 || (file && file.size > 0);
+        
+        if (hasUserInput && (nameErrors.length > 0 || fileErrors.length > 0)) {
             const allErrors = [...nameErrors, ...fileErrors];
             Utils.showMessage('uploadMessage', allErrors.join(', '), 'error', 3000);
-        } else {
+        } else if (hasUserInput && isValid) {
             Utils.hideMessage('uploadMessage');
         }
         
@@ -455,10 +572,10 @@ class OutfitVotingApp {
             this.resetUploadForm();
             this.showUploadDisabledMessage();
             
-            // Switch to gallery page
+            // Switch to gallery page automatically
             this.navigateToPage('galleryPage');
             
-            // Refresh data
+            // Load updated data
             await this.loadData();
             
             Utils.showMessage('uploadMessage', 'Outfit erfolgreich hochgeladen!', 'success');
@@ -497,6 +614,13 @@ class OutfitVotingApp {
             
             // Refresh data to show updated vote counts
             await this.loadData();
+            
+            // If user has now both uploaded and voted, navigate to results
+            if (this.hasUploaded && this.hasVoted) {
+                setTimeout(() => {
+                    this.navigateToPage('resultsPage');
+                }, 2000); // Wait 2 seconds to show success message
+            }
             
             Utils.showMessage('uploadMessage', 'Deine Stimme wurde gezählt!', 'success');
             
@@ -548,6 +672,65 @@ class OutfitVotingApp {
             clearInterval(this.refreshInterval);
             this.refreshInterval = null;
         }
+    }
+
+    openLightbox(outfit) {
+        if (!this.elements.imageLightbox) return;
+
+        // Set lightbox content
+        this.elements.lightboxImage.src = outfit.imageData;
+        this.elements.lightboxImage.alt = `Outfit von ${outfit.name}`;
+        this.elements.lightboxName.textContent = outfit.name;
+
+        // Configure vote button
+        const userVote = this.hasVoted;
+        const hasVotedForThis = userVote && this.userVotedFor === outfit.id;
+        const votingEnabled = LocalStorage.isVotingEnabled();
+
+        this.elements.lightboxVoteBtn.setAttribute('data-outfit-id', outfit.id);
+        this.elements.lightboxVoteBtn.disabled = !votingEnabled || userVote;
+
+        // Update vote button appearance
+        const voteIcon = this.elements.lightboxVoteBtn.querySelector('.material-icons');
+        const voteText = this.elements.lightboxVoteBtn.querySelector('.vote-text');
+        
+        if (hasVotedForThis) {
+            voteIcon.textContent = 'favorite';
+            voteText.textContent = 'Gewählt';
+            this.elements.lightboxVoteBtn.classList.add('voted');
+        } else if (userVote) {
+            voteIcon.textContent = 'favorite_border';
+            voteText.textContent = 'Bereits gewählt';
+            this.elements.lightboxVoteBtn.classList.remove('voted');
+        } else {
+            voteIcon.textContent = 'favorite_border';
+            voteText.textContent = 'Abstimmen';
+            this.elements.lightboxVoteBtn.classList.remove('voted');
+        }
+
+        // Show lightbox
+        this.elements.imageLightbox.style.display = 'flex';
+        
+        // Trigger animation
+        setTimeout(() => {
+            this.elements.imageLightbox.classList.add('show');
+        }, 10);
+
+        // Prevent body scroll
+        document.body.style.overflow = 'hidden';
+    }
+
+    closeLightbox() {
+        if (!this.elements.imageLightbox) return;
+
+        this.elements.imageLightbox.classList.remove('show');
+        
+        setTimeout(() => {
+            this.elements.imageLightbox.style.display = 'none';
+        }, 300);
+
+        // Restore body scroll
+        document.body.style.overflow = '';
     }
 
     showUploadDisabledMessage() {

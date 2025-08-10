@@ -136,6 +136,28 @@
         <div id="loadingOverlay" class="loading-overlay" style="display: none;">
             <div class="loading-spinner"></div>
         </div>
+
+        <!-- Image Lightbox -->
+        <div id="imageLightbox" class="lightbox-overlay" style="display: none;">
+            <div class="lightbox-backdrop"></div>
+            <div class="lightbox-content">
+                <button id="closeLightbox" class="lightbox-close">
+                    <span class="material-icons">close</span>
+                </button>
+                <div class="lightbox-image-container">
+                    <img id="lightboxImage" src="" alt="" class="lightbox-image">
+                </div>
+                <div class="lightbox-info">
+                    <h3 id="lightboxName" class="lightbox-name"></h3>
+                    <div class="lightbox-actions">
+                        <button id="lightboxVoteBtn" class="button vote-button" data-outfit-id="">
+                            <span class="material-icons">favorite_border</span>
+                            <span class="vote-text">Abstimmen</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Scripts -->
