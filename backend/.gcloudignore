@@ -14,3 +14,13 @@
 .gitignore
 
 node_modules
+
+# Test files and coverage
+*.test.js
+__tests__/
+coverage/
+jest.config.js
+
+# Development files
+.env
+.env.local
