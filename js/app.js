@@ -318,6 +318,12 @@ class OutfitVotingApp {
         Utils.showLoading();
         
         try {
+            // Check backend health first
+            const backendHealthy = await CloudStorage.checkBackendHealth();
+            if (!backendHealthy) {
+                console.warn('Backend not available, using local storage as fallback');
+            }
+            
             // Load initial data for all pages
             await this.loadGallery();
             await this.loadResults();
@@ -331,26 +337,41 @@ class OutfitVotingApp {
     }
 
     async loadGallery() {
-        const outfits = LocalStorage.getOutfits();
-        const gallery = this.elements.gallery;
-        const noOutfits = this.elements.noOutfits;
+        try {
+            // Try to load from cloud first, fallback to local storage
+            const outfits = await CloudStorage.getOutfits();
+            const gallery = this.elements.gallery;
+            const noOutfits = this.elements.noOutfits;
 
-        if (outfits.length === 0) {
-            gallery.style.display = 'none';
-            noOutfits.style.display = 'flex';
-            return;
-        }
+            if (outfits.length === 0) {
+                gallery.style.display = 'none';
+                noOutfits.style.display = 'flex';
+                return;
+            }
 
-        gallery.style.display = 'flex';
-        noOutfits.style.display = 'none';
-        gallery.innerHTML = '';
+            gallery.style.display = 'flex';
+            noOutfits.style.display = 'none';
+            gallery.innerHTML = '';
 
-        // Sort by timestamp (newest first)
-        const sortedOutfits = outfits.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            // Sort by timestamp (newest first)
+            const sortedOutfits = outfits.sort((a, b) => new Date(b.uploadedAt || b.timestamp) - new Date(a.uploadedAt || a.timestamp));
 
-        for (const outfit of sortedOutfits) {
-            const card = await this.createOutfitCard(outfit);
-            gallery.appendChild(card);
+            for (const outfit of sortedOutfits) {
+                const card = await this.createOutfitCard(outfit);
+                gallery.appendChild(card);
+            }
+        } catch (error) {
+            console.error('Error loading gallery:', error);
+            // Fallback to local storage if cloud fails
+            const localOutfits = LocalStorage.getOutfits();
+            if (localOutfits.length > 0) {
+                const gallery = this.elements.gallery;
+                gallery.innerHTML = '';
+                for (const outfit of localOutfits) {
+                    const card = await this.createOutfitCard(outfit);
+                    gallery.appendChild(card);
+                }
+            }
         }
     }
 
@@ -408,14 +429,29 @@ class OutfitVotingApp {
     }
 
     async loadResults() {
-        const rankedResults = LocalStorage.getRankedResults();
-        const resultsContainer = this.elements.results;
-        const noResults = this.elements.noResults;
-        
-        if (rankedResults.length === 0) {
-            if (resultsContainer) resultsContainer.style.display = 'none';
-            if (noResults) noResults.style.display = 'flex';
-            return;
+        try {
+            // Try to load from cloud first, fallback to local storage
+            const rankedResults = await CloudStorage.getResults();
+            const resultsContainer = this.elements.results;
+            const noResults = this.elements.noResults;
+            
+            if (rankedResults.length === 0) {
+                if (resultsContainer) resultsContainer.style.display = 'none';
+                if (noResults) noResults.style.display = 'flex';
+                return;
+            }
+        } catch (error) {
+            console.error('Error loading results:', error);
+            // Fallback to local storage
+            const rankedResults = LocalStorage.getRankedResults();
+            const resultsContainer = this.elements.results;
+            const noResults = this.elements.noResults;
+            
+            if (rankedResults.length === 0) {
+                if (resultsContainer) resultsContainer.style.display = 'none';
+                if (noResults) noResults.style.display = 'flex';
+                return;
+            }
         }
 
         if (resultsContainer) resultsContainer.style.display = 'flex';
@@ -550,19 +586,15 @@ class OutfitVotingApp {
             const name = this.elements.userName.value.trim();
             const file = this.elements.imageFile.files[0];
             
-            // Resize and compress image
-            const resizedBlob = await ImageUtils.resizeImage(file);
-            const imageData = await ImageUtils.fileToDataURL(resizedBlob);
-            
-            // Create outfit object
+            // Create outfit object for cloud upload
             const outfit = {
-                name: name,
-                imageData: imageData,
+                userName: name,
+                imageFile: file,
                 userIdentifier: this.userIdentifier
             };
             
-            // Save outfit
-            const savedOutfit = LocalStorage.saveOutfit(outfit);
+            // Save outfit to cloud
+            const savedOutfit = await CloudStorage.saveOutfit(outfit);
             
             // Mark user as uploaded
             await LocalStorage.markUserAsUploaded();
@@ -582,7 +614,37 @@ class OutfitVotingApp {
             
         } catch (error) {
             console.error('Error uploading outfit:', error);
-            Utils.showMessage('uploadMessage', 'Fehler beim Hochladen: ' + error.message, 'error');
+            
+            // Fallback to local storage if cloud upload fails
+            try {
+                const name = this.elements.userName.value.trim();
+                const file = this.elements.imageFile.files[0];
+                
+                // Resize and compress image for local storage
+                const resizedBlob = await ImageUtils.resizeImage(file);
+                const imageData = await ImageUtils.fileToDataURL(resizedBlob);
+                
+                const outfit = {
+                    name: name,
+                    imageData: imageData,
+                    userIdentifier: this.userIdentifier
+                };
+                
+                const savedOutfit = LocalStorage.saveOutfit(outfit);
+                await LocalStorage.markUserAsUploaded();
+                this.hasUploaded = true;
+                
+                this.resetUploadForm();
+                this.showUploadDisabledMessage();
+                this.navigateToPage('galleryPage');
+                await this.loadData();
+                
+                Utils.showMessage('uploadMessage', 'Outfit lokal gespeichert (Backend nicht verfügbar)', 'warning');
+                
+            } catch (fallbackError) {
+                console.error('Error with fallback upload:', fallbackError);
+                Utils.showMessage('uploadMessage', 'Fehler beim Hochladen: ' + error.message, 'error');
+            }
         } finally {
             Utils.hideLoading();
         }
@@ -609,6 +671,10 @@ class OutfitVotingApp {
         Utils.showLoading();
         
         try {
+            // Try to vote via cloud first
+            await CloudStorage.vote(outfitId, this.userIdentifier);
+            
+            // Also save locally for consistency
             await LocalStorage.addVote(outfitId);
             this.hasVoted = true;
             

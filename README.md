@@ -1,6 +1,6 @@
 # Outfit-Voting Website
 
-Eine moderne, mobile-first Website für Outfit-Voting Events mit Material Design 3.
+Eine moderne Web-App für Outfit-Voting mit Google Cloud Backend.
 
 ## Features
 
@@ -8,6 +8,8 @@ Eine moderne, mobile-first Website für Outfit-Voting Events mit Material Design
 - **Upload-System**: Einmaliger Upload pro Nutzer mit Name und Foto
 - **Voting-System**: Eine Stimme pro Nutzer
 - **Echtzeit-Ranking**: Live-Anzeige der aktuellen Ergebnisse
+- **Cloud Storage**: Bilder werden in Google Cloud Storage gespeichert
+- **CI/CD**: Automatisches Deployment via GitHub Actions
 - **Nutzer-Identifikation**: Über Browser-Fingerprinting (kein Login erforderlich)
 
 ### 🎨 Design & UX
