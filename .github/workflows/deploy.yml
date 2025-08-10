@@ -74,7 +74,7 @@ jobs:
       run: |
         gcloud functions deploy outfit-voting \
           --runtime nodejs18 \
-          --trigger http \
+          --trigger-http \
           --allow-unauthenticated \
           --memory 256MB \
           --timeout 30s \
