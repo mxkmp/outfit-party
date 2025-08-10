@@ -1,0 +1,13 @@
+Ich möchte eine Website erstellen, bei der jeder User einmalig ein Bild von sich und seinem Outfit hochladen kann. 
+Das Bild wird mit einem Namen hochgeladen. 
+Das Ziel ist es, dass es am Ende die Möglichkeit gibt, die Outfits zu bewerten und jeder User darf eine Stimme anyonym abgeben. 
+Am Ende wird ausgezählt und der Gewinner ausgelost. 
+Die Abstimmung und das Hochladen soll immer zur Verfügung stehen, insofern noch nichts hochgeladen wurde.
+Das Ranking ebenfalls.
+ Die Party ist eine 2000er Party, halte das Design in dem Design von dem damaligen SchülerVZ.
+Stelle sicher das jeder User ein Bild nur einmal hochladen kann. 
+In der ersten Version sollen die Bilder lokal gespeichert werden. 
+
+
+ Die Webseite soll auf Github Page gespeichert werden. 
+Am Besten verwenden wir dafür Google Cloud Storage

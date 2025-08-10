@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking - 2000er Party Outfit Contest</title>
+    <link rel="stylesheet" href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="mdc-typography">
+
+    <main class="main-content">
+        <div id="ranking-section" class="mdc-list-group">
+            <ul id="ranking-list" class="mdc-list"></ul>
+        </div>
+    </main>
+
+    <footer class="bottom-nav">
+        <a href="/" class="nav-item">
+            <i class="material-icons">photo_library</i>
+            <span>Galerie</span>
+        </a>
+        <a href="/upload.html" class="nav-item">
+            <i class="material-icons">cloud_upload</i>
+            <span>Upload</span>
+        </a>
+        <a href="/ranking.html" class="nav-item active">
+            <i class="material-icons">leaderboard</i>
+            <span>Ranking</span>
+        </a>
+    </footer>
+
+    <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
+    <script>mdc.autoInit()</script>
+    <script src="js/main.js"></script>
+</body>
+</html>
