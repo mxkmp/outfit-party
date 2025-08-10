@@ -160,7 +160,8 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: var(--spacing-lg) 0;
+    padding: var(--spacing-lg);
+    min-height: calc(100vh - 200px); /* Ensure proper centering on full viewport */
 }
 
 .upload-card {
@@ -169,8 +170,9 @@ body {
     padding: var(--spacing-xxl);
     box-shadow: var(--elevation-2);
     width: 100%;
-    max-width: 400px;
+    max-width: 450px; /* Slightly larger for better mobile experience */
     text-align: center;
+    position: relative; /* For absolute positioning of overlay elements */
 }
 
 .upload-icon {
@@ -460,6 +462,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-md);
+    position: relative; /* For positioning overlay elements */
 }
 
 .file-preview {
@@ -467,17 +470,44 @@ body {
     max-width: 100%;
     border-radius: var(--border-radius-md);
     overflow: hidden;
+    position: relative; /* For positioning overlay button */
+    margin-bottom: var(--spacing-md);
 }
 
 .file-preview img {
     width: 100%;
     height: auto;
-    max-height: 300px;
+    max-height: 400px; /* Increased from 300px for better preview */
     object-fit: cover;
+    display: block;
 }
 
 .file-preview.show {
     display: block;
+}
+
+.upload-button-container {
+    width: 100%;
+    position: relative;
+}
+
+/* When preview is shown, position upload button as overlay */
+.file-preview.show + .upload-button-container {
+    position: absolute;
+    bottom: var(--spacing-lg);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    width: auto;
+    min-width: 200px;
+}
+
+.file-preview.show + .upload-button-container .button {
+    backdrop-filter: blur(8px);
+    background-color: rgba(103, 80, 164, 0.95) !important;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    box-shadow: var(--elevation-3);
+    color: white !important;
 }
 
 /* Gallery */
@@ -753,12 +783,28 @@ body {
         font-size: 24px;
     }
     
+    .upload-container {
+        padding: var(--spacing-md);
+        min-height: calc(100vh - 180px);
+    }
+    
     .upload-card {
         padding: var(--spacing-lg);
+        max-width: none; /* Full width on mobile */
+        margin: 0;
     }
     
     .upload-icon .material-icons {
         font-size: 48px;
+    }
+    
+    .file-preview img {
+        max-height: 250px; /* Slightly smaller on tablets */
+    }
+    
+    .file-preview.show + .upload-button-container {
+        bottom: var(--spacing-md);
+        min-width: 180px;
     }
     
     .outfit-card__image {
@@ -771,10 +817,28 @@ body {
         padding: var(--spacing-sm);
     }
     
+    .upload-container {
+        padding: var(--spacing-sm);
+        min-height: calc(100vh - 160px);
+    }
+    
     .upload-card {
         padding: var(--spacing-md);
         max-width: none;
-        margin: 0 var(--spacing-sm);
+        margin: 0;
+    }
+    
+    .file-preview img {
+        max-height: 200px; /* Smaller on mobile for better button visibility */
+    }
+    
+    .file-preview.show + .upload-button-container {
+        bottom: var(--spacing-md);
+        left: var(--spacing-md);
+        right: var(--spacing-md);
+        transform: none;
+        width: auto;
+        min-width: auto;
     }
     
     .outfit-card__image {
