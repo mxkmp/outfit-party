@@ -1,10 +1,15 @@
 // Backend API integration
 class BackendAPI {
     constructor() {
-        // Update this URL after deploying your Cloud Function
-        this.baseURL = process.env.NODE_ENV === 'production' 
-            ? 'https://europe-west3-your-outfit-voting-project.cloudfunctions.net/outfit-voting'
-            : 'http://localhost:8080';
+        // Use global config if available, otherwise fallback to environment detection
+        if (window.APP_CONFIG && window.APP_CONFIG.BACKEND_URL) {
+            this.baseURL = window.APP_CONFIG.BACKEND_URL;
+        } else {
+            // Update this URL after deploying your Cloud Function
+            this.baseURL = process.env.NODE_ENV === 'production' 
+                ? 'https://europe-west3-your-outfit-voting-project.cloudfunctions.net/outfit-voting'
+                : 'http://localhost:8080';
+        }
     }
 
     async makeRequest(endpoint, options = {}) {

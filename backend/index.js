@@ -33,8 +33,11 @@ app.use(cors({
     origin: [
         'http://localhost:3000',
         'http://localhost:8080',
-        'https://*.github.io',
-        /\.github\.io$/
+        'http://localhost:8000',
+        'https://mxkmp.github.io',
+        /^https:\/\/.*\.github\.io$/,
+        /^https:\/\/.*\.netlify\.app$/,
+        /^https:\/\/.*\.vercel\.app$/
     ],
     credentials: true
 }));
