@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Deploy to GitHub Pages and Google Cloud
 
 on:
   push:
@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Test Job
+  # Test Job - validates code before deployment
   test:
     runs-on: ubuntu-latest
     steps:
@@ -34,6 +34,13 @@ jobs:
       working-directory: ./backend
       run: npm ci
 
+    - name: Validate backend dependencies
+      working-directory: ./backend
+      run: |
+        echo "Checking backend dependencies..."
+        npm ls --depth=0
+        echo "✅ Backend dependencies validated"
+
     - name: Run basic tests
       working-directory: ./backend
       run: |
@@ -44,8 +51,8 @@ jobs:
     - name: Validate HTML
       run: |
         echo "Validating HTML structure..."
-        # Basic HTML validation
-        if grep -q "<!DOCTYPE html>" index.html; then
+        # Basic HTML validation - escape the ! character
+        if grep -q "DOCTYPE html" index.html; then
           echo "✅ HTML DOCTYPE found"
         else
           echo "❌ Missing HTML DOCTYPE"
@@ -72,9 +79,15 @@ jobs:
       uses: 'google-github-actions/setup-gcloud@v2'
 
 
+    - name: Verify Google Cloud authentication
+      run: |
+        gcloud auth list
+        gcloud config list project
+
     - name: Deploy Cloud Function
       working-directory: ./backend
       run: |
+        echo "Deploying Cloud Function..."
         gcloud functions deploy outfit-voting \
           --runtime nodejs18 \
           --trigger-http \
@@ -82,14 +95,20 @@ jobs:
           --memory 256MB \
           --timeout 30s \
           --region europe-west3 \
-          --set-env-vars BUCKET_NAME=${{ secrets.GCP_BUCKET_NAME }}
+          --set-env-vars BUCKET_NAME=${{ secrets.GCP_BUCKET_NAME }} \
+          --quiet
 
     - name: Get Function URL
       id: get-url
       run: |
-        FUNCTION_URL=$(gcloud functions describe outfit-voting --region=europe-west3 --format="value(httpsTrigger.url)")
+        echo "Getting function URL..."
+        FUNCTION_URL=$(gcloud functions describe outfit-voting --region=europe-west3 --format="value(httpsTrigger.url)" 2>/dev/null || echo "")
+        if [ -z "$FUNCTION_URL" ]; then
+          echo "❌ Failed to get function URL"
+          exit 1
+        fi
         echo "function_url=$FUNCTION_URL" >> $GITHUB_OUTPUT
-        echo "Backend deployed to: $FUNCTION_URL"
+        echo "✅ Backend deployed to: $FUNCTION_URL"
 
   # Build and Deploy Frontend to GitHub Pages
   deploy-frontend:
@@ -110,24 +129,38 @@ jobs:
 
     - name: Update Backend URL in Frontend
       run: |
-        # Update the backend URL in the cloud-storage.js file
+        # Update the backend URL in the cloud-storage.js file as fallback
         BACKEND_URL="https://europe-west3-${{ secrets.GCP_PROJECT_ID }}.cloudfunctions.net/outfit-voting"
         sed -i "s|your-outfit-voting-project|${{ secrets.GCP_PROJECT_ID }}|g" js/cloud-storage.js
-        echo "Updated backend URL to: $BACKEND_URL"
+        echo "✅ Updated fallback backend URL to: $BACKEND_URL"
 
     - name: Create production config
       run: |
         cat > js/config.js << EOF
+        // Production configuration
         window.APP_CONFIG = {
           BACKEND_URL: 'https://europe-west3-${{ secrets.GCP_PROJECT_ID }}.cloudfunctions.net/outfit-voting',
           ENVIRONMENT: 'production',
-          VERSION: '${{ github.sha }}'
+          VERSION: '${{ github.sha }}',
+          BUILD_TIME: '$(date -u +"%Y-%m-%dT%H:%M:%SZ")'
         };
+        console.log('App config loaded:', window.APP_CONFIG);
         EOF
+        echo "✅ Created production config"
 
     - name: Add config script to HTML
       run: |
-        sed -i 's|<script src="js/cloud-storage.js"></script>|<script src="js/config.js"></script>\n    <script src="js/cloud-storage.js"></script>|g' index.html
+        # Add config.js before cloud-storage.js with proper indentation
+        sed -i 's|    <script src="js/cloud-storage.js"></script>|    <script src="js/config.js"></script>\n    <script src="js/cloud-storage.js"></script>|g' index.html
+        echo "✅ Added config script to HTML"
+        
+        # Verify the change
+        if grep -q "js/config.js" index.html; then
+          echo "✅ Config script successfully added"
+        else
+          echo "❌ Failed to add config script"
+          exit 1
+        fi
 
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
@@ -147,11 +180,28 @@ jobs:
     steps:
     - name: Deployment Status
       run: |
+        echo "=== Deployment Summary ==="
+        echo "Backend Status: ${{ needs.deploy-backend.result }}"
+        echo "Frontend Status: ${{ needs.deploy-frontend.result }}"
+        echo ""
+        
         if [ "${{ needs.deploy-backend.result }}" == "success" ] && [ "${{ needs.deploy-frontend.result }}" == "success" ]; then
           echo "🎉 Deployment successful!"
           echo "Frontend: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
           echo "Backend: https://europe-west3-${{ secrets.GCP_PROJECT_ID }}.cloudfunctions.net/outfit-voting"
+          echo ""
+          echo "✅ Both frontend and backend deployed successfully"
+        elif [ "${{ needs.deploy-backend.result }}" == "success" ]; then
+          echo "✅ Backend deployed successfully"
+          echo "❌ Frontend deployment failed"
+          echo "Backend: https://europe-west3-${{ secrets.GCP_PROJECT_ID }}.cloudfunctions.net/outfit-voting"
+          exit 1
+        elif [ "${{ needs.deploy-frontend.result }}" == "success" ]; then
+          echo "❌ Backend deployment failed"
+          echo "✅ Frontend deployed successfully"
+          echo "Frontend: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+          exit 1
         else
-          echo "❌ Deployment failed"
+          echo "❌ Both deployments failed"
           exit 1
         fi
