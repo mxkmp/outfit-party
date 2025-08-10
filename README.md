@@ -131,6 +131,18 @@ Das Standard-Passwort ist: `admin123`
 
 ### 🚀 Deployment
 
+**Automatisches CI/CD (empfohlen):**
+1. Google Cloud Project erstellen und konfigurieren
+2. Service Account Key als GitHub Secret hinzufügen
+3. GitHub Secrets konfigurieren:
+   - `GCP_PROJECT_ID`: Ihre Google Cloud Project ID
+   - `GCP_SERVICE_ACCOUNT_KEY`: Service Account JSON (base64 encoded)
+   - `GCP_BUCKET_NAME`: Cloud Storage Bucket Name
+4. Push zu `main` Branch löst automatisches Deployment aus
+   - Backend wird zu Google Cloud Functions deployed
+   - Frontend wird zu GitHub Pages deployed
+   - Konfiguration wird automatisch erstellt
+
 **GitHub Pages:**
 1. Repository erstellen
 2. Dateien hochladen
@@ -201,6 +213,13 @@ Die App ist bereits für Cloud-Storage vorbereitet:
 - Local Storage wurde geleert
 - Anderer Browser/Incognito-Modus
 - Event wurde vom Admin beendet
+
+**CI/CD Deployment Probleme:**
+- GitHub Secrets korrekt konfiguriert? (GCP_PROJECT_ID, GCP_SERVICE_ACCOUNT_KEY, GCP_BUCKET_NAME)
+- Service Account hat ausreichende Berechtigungen?
+- Cloud Functions API aktiviert?
+- Cloud Storage Bucket existiert?
+- GitHub Pages aktiviert in Repository Settings?
 
 ### 🔍 Debug-Modus
 Browser-Entwicklertools öffnen (F12) für detaillierte Logs.
