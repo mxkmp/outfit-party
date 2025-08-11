@@ -113,6 +113,13 @@ After deployment to production:
 - **Backend errors**: Application gracefully falls back to local storage
 - **Admin login**: Default password is `admin123` (configurable in `js/storage.js`)
 - **Deployment failures**: Check GitHub Actions logs, verify all secrets are configured
+- **Configuration issues**: 
+  - Verify `.env.local` exists and contains correct values
+  - Check GitHub repository secrets are set (GCP_PROJECT_ID, GCP_SERVICE_ACCOUNT_KEY, GCP_BUCKET_NAME)
+  - Ensure backend URL matches deployed Cloud Function URL
+  - Verify Cloud Storage bucket exists and has public read permissions
+  - Check CORS configuration allows your domain
+  - Validate admin passwords match between frontend and backend
 
 ### Admin Configuration
 - **Default admin password**: `admin123` (changeable in `js/storage.js`)
@@ -123,6 +130,30 @@ After deployment to production:
 - **Local config**: `.env.local` (created by setup script)
 - **Production secrets**: GitHub repository secrets (GCP_PROJECT_ID, GCP_SERVICE_ACCOUNT_KEY, GCP_BUCKET_NAME)
 - **Backend fallback**: Application works offline with local storage when backend unavailable
+
+### Configuration Management
+Always update configuration documentation when adding new environment variables or settings:
+
+#### Environment Variables
+- **Backend Environment Variables**: `BUCKET_NAME`, `ADMIN_PASSWORD`, `NODE_ENV`
+- **GitHub Secrets**: `GCP_PROJECT_ID`, `GCP_SERVICE_ACCOUNT_KEY`, `GCP_BUCKET_NAME`
+- **Local Development**: `.env.local` with PROJECT_ID, BUCKET_NAME, FUNCTION_REGION, BACKEND_URL
+- **Testing Variables**: `USE_REAL_GCS` for cloud testing
+
+#### Configuration Files and Settings
+- **Admin Settings** (js/storage.js): uploadsEnabled, votingEnabled, eventEnded, unlimitedUploads, adminPassword
+- **Image Processing** (js/storage.js): MAX_SIZE (50MB), MAX_WIDTH (1200px), MAX_HEIGHT (1200px), QUALITY (0.8)
+- **Backend Limits** (backend/index.js): fileSize limit (10MB), timeout (30s), memory (256MB)
+- **Cloud Function Config**: Runtime (Node.js 18+), Region (europe-west3), HTTP trigger
+- **CORS Origins**: localhost ports, GitHub Pages, Netlify, Vercel domains
+- **Auto-refresh Intervals**: Gallery (10s), Ranking (5s), Admin stats (5s)
+
+#### Configuration Best Practices
+- Document all new environment variables in README immediately
+- Use consistent naming conventions (UPPERCASE for env vars, camelCase for JS settings)
+- Provide sensible defaults for all optional configurations
+- Include configuration troubleshooting in error scenarios
+- Update copilot instructions when adding new configuration options
 
 ## Architecture Notes
 - **Frontend-only**: Can run completely in browser with local storage fallback
