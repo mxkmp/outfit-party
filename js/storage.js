@@ -53,7 +53,16 @@ class LocalStorage {
         );
         
         if (existingOutfit) {
-            throw new Error('Dieser Name ist bereits vergeben. Bitte wähle einen anderen Namen.');
+            // If it's a local-only outfit by the same user, allow replacement
+            if (existingOutfit.isLocalOnly && existingOutfit.userIdentifier === outfit.userIdentifier) {
+                // Update the existing outfit instead of creating a new one
+                Object.assign(existingOutfit, outfit);
+                existingOutfit.timestamp = new Date().toISOString();
+                localStorage.setItem(this.KEYS.OUTFITS, JSON.stringify(outfits));
+                return existingOutfit;
+            } else {
+                throw new Error('Dieser Name ist bereits vergeben. Bitte wähle einen anderen Namen.');
+            }
         }
         
         outfit.id = this.generateId();
