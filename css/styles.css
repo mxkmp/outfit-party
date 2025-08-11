@@ -412,10 +412,14 @@ body {
 .text-field {
     position: relative;
     margin-bottom: var(--spacing-lg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .text-field input {
     width: 100%;
+    max-width: 300px;
     padding: 16px 16px 8px 16px;
     border: 1px solid var(--md-sys-color-outline);
     border-radius: var(--border-radius-sm);
@@ -489,6 +493,9 @@ body {
 .upload-button-container {
     width: 100%;
     position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 /* When preview is shown, position upload button as overlay */
