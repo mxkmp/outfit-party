@@ -48,7 +48,13 @@ describe('Outfit Voting API', () => {
     process.env.NODE_ENV = 'test';
     
     // Import fresh app instance after mocks are set up
-    app = require('./index');
+    const appModule = require('./index');
+    app = appModule;
+    
+    // Reset in-memory storage if available
+    if (appModule.resetStorage) {
+      appModule.resetStorage();
+    }
   });
 
   describe('GET /api/health', () => {
@@ -440,16 +446,16 @@ describe('Outfit Voting API', () => {
       outfitId = response.body.outfit.id;
     });
 
-    test('should delete outfit successfully with authentication', async () => {
+    test('should delete outfit successfully with authentication and return userIdentifier', async () => {
       const response = await request(app)
         .delete(`/api/outfits/${outfitId}`)
         .set('Authorization', 'Bearer admin123')
         .expect(200);
 
-      expect(response.body).toEqual({
-        success: true,
-        message: 'Outfit deleted successfully'
-      });
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toBe('Outfit erfolgreich gelöscht');
+      expect(response.body.deletedUserIdentifier).toBe('user123'); // Should return the userIdentifier
+      expect(response.body.details).toContain('Das Outfit von "John Doe" wurde entfernt.');
 
       // Verify outfit is deleted
       const outfitsResponse = await request(app)
@@ -529,6 +535,78 @@ describe('Outfit Voting API', () => {
 
       expect(voteResponse.body.success).toBe(true);
     });
+  });
+
+  describe('Re-upload after deletion functionality', () => {
+    let app;
+
+    beforeEach(() => {
+      // Clear module cache for fresh state
+      jest.resetModules();
+      
+      // Set test environment
+      process.env.NODE_ENV = 'test';
+      
+      // Import fresh app instance after mocks are set up
+      const appModule = require('./index');
+      app = appModule;
+      
+      // Reset in-memory storage if available
+      if (appModule.resetStorage) {
+        appModule.resetStorage();
+      }
+    });
+
+    test('should allow user to upload again after their outfit is deleted', async () => {
+      // Mock uuid to return predictable IDs
+      const { v4: mockUuid } = require('uuid');
+      mockUuid
+        .mockReturnValueOnce('first-outfit-id')
+        .mockReturnValueOnce('first-file-id')
+        .mockReturnValueOnce('second-outfit-id')
+        .mockReturnValueOnce('second-file-id');
+
+      // User uploads first outfit
+      const firstUploadResponse = await request(app)
+        .post('/api/outfits')
+        .field('userName', 'John Doe')
+        .field('userIdentifier', 'user123')
+        .attach('image', Buffer.from('fake image data'), 'test.jpg');
+
+      expect(firstUploadResponse.status).toBe(200);
+      const outfitId = firstUploadResponse.body.outfit.id;
+
+      // Verify user cannot upload again (duplicate user check)
+      const duplicateUploadResponse = await request(app)
+        .post('/api/outfits')
+        .field('userName', 'John Doe 2')
+        .field('userIdentifier', 'user123')
+        .attach('image', Buffer.from('fake image data 2'), 'test2.jpg');
+
+      expect(duplicateUploadResponse.status).toBe(400);
+      expect(duplicateUploadResponse.body.error).toBe('Bereits hochgeladen');
+
+      // Admin deletes the outfit
+      const deleteResponse = await request(app)
+        .delete(`/api/outfits/${outfitId}`)
+        .set('Authorization', 'Bearer admin123');
+
+      expect(deleteResponse.status).toBe(200);
+      expect(deleteResponse.body.deletedUserIdentifier).toBe('user123');
+
+      // User should now be able to upload again
+      const secondUploadResponse = await request(app)
+        .post('/api/outfits')
+        .field('userName', 'John Doe New')
+        .field('userIdentifier', 'user123')
+        .attach('image', Buffer.from('new fake image data'), 'testnew.jpg');
+
+      expect(secondUploadResponse.status).toBe(200);
+      expect(secondUploadResponse.body.success).toBe(true);
+      expect(secondUploadResponse.body.outfit.userIdentifier).toBe('user123');
+      expect(secondUploadResponse.body.outfit.userName).toBe('John Doe New');
+    });
+  });
   });
 
   describe('Integration Tests', () => {

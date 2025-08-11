@@ -33,6 +33,7 @@ class AdminPanel {
             // Controls
             uploadsEnabled: document.getElementById('uploadsEnabled'),
             votingEnabled: document.getElementById('votingEnabled'),
+            unlimitedUploads: document.getElementById('unlimitedUploads'),
             endEventBtn: document.getElementById('endEventBtn'),
             
             // Content
@@ -73,6 +74,10 @@ class AdminPanel {
 
         this.elements.votingEnabled.addEventListener('change', () => {
             this.updateAdminSetting('votingEnabled', this.elements.votingEnabled.checked);
+        });
+
+        this.elements.unlimitedUploads.addEventListener('change', () => {
+            this.updateAdminSetting('unlimitedUploads', this.elements.unlimitedUploads.checked);
         });
 
         this.elements.endEventBtn.addEventListener('click', () => {
@@ -189,6 +194,7 @@ class AdminPanel {
         
         this.elements.uploadsEnabled.checked = settings.uploadsEnabled;
         this.elements.votingEnabled.checked = settings.votingEnabled;
+        this.elements.unlimitedUploads.checked = settings.unlimitedUploads;
         this.elements.endEventBtn.disabled = settings.eventEnded;
         
         if (settings.eventEnded) {
@@ -347,8 +353,13 @@ class AdminPanel {
             // Try backend deletion first if we have an authenticated API
             if (this.backendAPI) {
                 try {
-                    await this.backendAPI.deleteOutfit(outfitId);
+                    const result = await this.backendAPI.deleteOutfit(outfitId);
                     console.log(`Outfit ${outfitId} deleted via backend`);
+                    
+                    // Reset upload state for the user if their outfit was deleted
+                    if (result.deletedUserIdentifier) {
+                        await LocalStorage.resetUserUploadState(result.deletedUserIdentifier);
+                    }
                 } catch (error) {
                     console.warn('Backend deletion failed, falling back to local:', error);
                     LocalStorage.deleteOutfit(outfitId);
@@ -360,8 +371,13 @@ class AdminPanel {
                     const api = new BackendAPI();
                     api.setAdminPassword(storedPassword);
                     try {
-                        await api.deleteOutfit(outfitId);
+                        const result = await api.deleteOutfit(outfitId);
                         console.log(`Outfit ${outfitId} deleted via backend with stored password`);
+                        
+                        // Reset upload state for the user if their outfit was deleted
+                        if (result.deletedUserIdentifier) {
+                            await LocalStorage.resetUserUploadState(result.deletedUserIdentifier);
+                        }
                     } catch (error) {
                         console.warn('Backend deletion with stored password failed, falling back to local:', error);
                         LocalStorage.deleteOutfit(outfitId);

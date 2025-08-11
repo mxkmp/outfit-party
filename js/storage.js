@@ -72,6 +72,15 @@ class LocalStorage {
 
     static deleteOutfit(outfitId) {
         const outfits = this.getOutfits();
+        const outfitToDelete = outfits.find(outfit => outfit.id === outfitId);
+        
+        if (!outfitToDelete) {
+            return false; // Outfit not found
+        }
+        
+        // Store the userIdentifier of the outfit being deleted
+        const deletedUserIdentifier = outfitToDelete.userIdentifier;
+        
         const filteredOutfits = outfits.filter(outfit => outfit.id !== outfitId);
         localStorage.setItem(this.KEYS.OUTFITS, JSON.stringify(filteredOutfits));
         
@@ -79,6 +88,11 @@ class LocalStorage {
         const votes = this.getVotes();
         const filteredVotes = votes.filter(vote => vote.outfitId !== outfitId);
         localStorage.setItem(this.KEYS.VOTES, JSON.stringify(filteredVotes));
+        
+        // Reset upload state for the user whose outfit was deleted
+        if (deletedUserIdentifier) {
+            this.resetUserUploadState(deletedUserIdentifier);
+        }
         
         return true;
     }
@@ -190,6 +204,30 @@ class LocalStorage {
         await this.saveUserState(currentState);
     }
 
+    // Reset user upload state (for when their outfit is deleted)
+    static async resetUserUploadState(userIdentifier) {
+        // If no userIdentifier provided, reset current user
+        if (!userIdentifier) {
+            userIdentifier = await this.getUserIdentifier();
+        }
+        
+        // Only reset if it's for the current user (security measure)
+        const currentUserIdentifier = await this.getUserIdentifier();
+        if (userIdentifier === currentUserIdentifier) {
+            const currentState = await this.getUserState();
+            currentState.hasUploaded = false;
+            delete currentState.uploadTimestamp;
+            await this.saveUserState(currentState);
+            console.log('User upload state reset for user:', userIdentifier);
+        }
+    }
+
+    // Check if unlimited uploads are enabled
+    static isUnlimitedUploadsEnabled() {
+        const settings = this.getAdminSettings();
+        return settings.unlimitedUploads;
+    }
+
     // Admin settings
     static getAdminSettings() {
         const settings = localStorage.getItem(this.KEYS.ADMIN_SETTINGS);
@@ -197,6 +235,7 @@ class LocalStorage {
             uploadsEnabled: true,
             votingEnabled: true,
             eventEnded: false,
+            unlimitedUploads: false, // Allow unlimited uploads for testing
             adminPassword: 'admin123' // Default password - should be changed
         };
     }

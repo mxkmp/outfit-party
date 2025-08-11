@@ -161,10 +161,16 @@ class CloudStorage {
     static async deleteOutfit(outfitId) {
         try {
             const api = new BackendAPI();
-            await api.deleteOutfit(outfitId);
-            return true;
+            const result = await api.deleteOutfit(outfitId);
+            
+            // Also delete from local storage as fallback
+            LocalStorage.deleteOutfit(outfitId);
+            
+            return result;
         } catch (error) {
             console.error('Error deleting outfit from cloud:', error);
+            // Fallback to local storage deletion
+            LocalStorage.deleteOutfit(outfitId);
             throw error;
         }
     }
