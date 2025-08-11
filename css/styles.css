@@ -489,6 +489,9 @@ body {
 .upload-button-container {
     width: 100%;
     position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 /* When preview is shown, position upload button as overlay */
