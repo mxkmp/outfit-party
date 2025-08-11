@@ -446,6 +446,45 @@ class OutfitVotingApp {
                 if (noResults) noResults.style.display = 'flex';
                 return;
             }
+            
+            // Continue with displaying results...
+            if (resultsContainer) resultsContainer.style.display = 'flex';
+            if (noResults) noResults.style.display = 'none';
+            if (resultsContainer) resultsContainer.innerHTML = '';
+
+            const totalVotes = LocalStorage.getTotalVotes();
+
+            rankedResults.forEach((outfit, index) => {
+                const percentage = totalVotes > 0 ? (outfit.votes / totalVotes * 100) : 0;
+                const rank = index + 1;
+                
+                const resultItem = document.createElement('div');
+                resultItem.className = 'result-item fade-in';
+                
+                let rankClass = '';
+                if (rank === 1) rankClass = 'first';
+                else if (rank === 2) rankClass = 'second';
+                else if (rank === 3) rankClass = 'third';
+
+                resultItem.innerHTML = `
+                    <div class="result-item__rank ${rankClass}">
+                        ${rank}
+                    </div>
+                    <div class="result-item__content">
+                        <div class="result-item__name">${Utils.sanitizeHTML(outfit.name)}</div>
+                        <div class="result-item__votes">
+                            ${outfit.votes} ${outfit.votes === 1 ? 'Stimme' : 'Stimmen'} 
+                            (${percentage.toFixed(1)}%)
+                        </div>
+                    </div>
+                    <div class="result-item__bar">
+                        <div class="result-item__bar-fill" style="width: ${percentage}%"></div>
+                    </div>
+                `;
+
+                if (resultsContainer) resultsContainer.appendChild(resultItem);
+            });
+            
         } catch (error) {
             console.error('Error loading results:', error);
             // Fallback to local storage
@@ -458,44 +497,44 @@ class OutfitVotingApp {
                 if (noResults) noResults.style.display = 'flex';
                 return;
             }
-        }
-
-        if (resultsContainer) resultsContainer.style.display = 'flex';
-        if (noResults) noResults.style.display = 'none';
-        if (resultsContainer) resultsContainer.innerHTML = '';
-
-        const totalVotes = LocalStorage.getTotalVotes();
-
-        rankedResults.forEach((outfit, index) => {
-            const percentage = totalVotes > 0 ? (outfit.votes / totalVotes * 100) : 0;
-            const rank = index + 1;
             
-            const resultItem = document.createElement('div');
-            resultItem.className = 'result-item fade-in';
-            
-            let rankClass = '';
-            if (rank === 1) rankClass = 'first';
-            else if (rank === 2) rankClass = 'second';
-            else if (rank === 3) rankClass = 'third';
+            if (resultsContainer) resultsContainer.style.display = 'flex';
+            if (noResults) noResults.style.display = 'none';
+            if (resultsContainer) resultsContainer.innerHTML = '';
 
-            resultItem.innerHTML = `
-                <div class="result-item__rank ${rankClass}">
-                    ${rank}
-                </div>
-                <div class="result-item__content">
-                    <div class="result-item__name">${Utils.sanitizeHTML(outfit.name)}</div>
-                    <div class="result-item__votes">
-                        ${outfit.votes} ${outfit.votes === 1 ? 'Stimme' : 'Stimmen'} 
-                        (${percentage.toFixed(1)}%)
+            const totalVotes = LocalStorage.getTotalVotes();
+
+            rankedResults.forEach((outfit, index) => {
+                const percentage = totalVotes > 0 ? (outfit.votes / totalVotes * 100) : 0;
+                const rank = index + 1;
+                
+                const resultItem = document.createElement('div');
+                resultItem.className = 'result-item fade-in';
+                
+                let rankClass = '';
+                if (rank === 1) rankClass = 'first';
+                else if (rank === 2) rankClass = 'second';
+                else if (rank === 3) rankClass = 'third';
+
+                resultItem.innerHTML = `
+                    <div class="result-item__rank ${rankClass}">
+                        ${rank}
                     </div>
-                </div>
-                <div class="result-item__bar">
-                    <div class="result-item__bar-fill" style="width: ${percentage}%"></div>
-                </div>
-            `;
+                    <div class="result-item__content">
+                        <div class="result-item__name">${Utils.sanitizeHTML(outfit.name)}</div>
+                        <div class="result-item__votes">
+                            ${outfit.votes} ${outfit.votes === 1 ? 'Stimme' : 'Stimmen'} 
+                            (${percentage.toFixed(1)}%)
+                        </div>
+                    </div>
+                    <div class="result-item__bar">
+                        <div class="result-item__bar-fill" style="width: ${percentage}%"></div>
+                    </div>
+                `;
 
-            if (resultsContainer) resultsContainer.appendChild(resultItem);
-        });
+                if (resultsContainer) resultsContainer.appendChild(resultItem);
+            });
+        }
     }
 
     handleFileSelection(file) {
