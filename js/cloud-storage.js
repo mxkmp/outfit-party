@@ -6,8 +6,10 @@ class BackendAPI {
             this.baseURL = window.APP_CONFIG.BACKEND_URL;
         } else {
             // Update this URL after deploying your Cloud Function
-            this.baseURL = process.env.NODE_ENV === 'production' 
-                ? 'https://europe-west3-your-outfit-voting-project.cloudfunctions.net/outfit-voting'
+            // Detect production environment using window.location
+            const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+            this.baseURL = isProduction 
+                ? 'https://europe-west3-personal-468620.cloudfunctions.net/outfit-voting'
                 : 'http://localhost:8080';
         }
     }
