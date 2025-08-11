@@ -382,6 +382,46 @@ describe('Outfit Voting API', () => {
     });
   });
 
+  describe('Admin Authentication', () => {
+    describe('POST /api/admin/verify-password', () => {
+      test('should verify correct password', async () => {
+        const response = await request(app)
+          .post('/api/admin/verify-password')
+          .send({ password: 'admin123' })
+          .expect(200);
+
+        expect(response.body).toEqual({
+          success: true,
+          message: 'Password verified successfully'
+        });
+      });
+
+      test('should reject incorrect password', async () => {
+        const response = await request(app)
+          .post('/api/admin/verify-password')
+          .send({ password: 'wrongpassword' })
+          .expect(401);
+
+        expect(response.body).toEqual({
+          success: false,
+          error: 'Invalid password'
+        });
+      });
+
+      test('should reject empty password', async () => {
+        const response = await request(app)
+          .post('/api/admin/verify-password')
+          .send({})
+          .expect(400);
+
+        expect(response.body).toEqual({
+          success: false,
+          error: 'Password is required'
+        });
+      });
+    });
+  });
+
   describe('DELETE /api/outfits/:id', () => {
     let outfitId;
 
@@ -400,9 +440,10 @@ describe('Outfit Voting API', () => {
       outfitId = response.body.outfit.id;
     });
 
-    test('should delete outfit successfully', async () => {
+    test('should delete outfit successfully with authentication', async () => {
       const response = await request(app)
         .delete(`/api/outfits/${outfitId}`)
+        .set('Authorization', 'Bearer admin123')
         .expect(200);
 
       expect(response.body).toEqual({
@@ -418,9 +459,33 @@ describe('Outfit Voting API', () => {
       expect(outfitsResponse.body.outfits).toHaveLength(0);
     });
 
-    test('should return 404 for non-existent outfit', async () => {
+    test('should reject deletion without authentication', async () => {
+      const response = await request(app)
+        .delete(`/api/outfits/${outfitId}`)
+        .expect(401);
+
+      expect(response.body).toEqual({
+        success: false,
+        error: 'Authentication required'
+      });
+    });
+
+    test('should reject deletion with invalid authentication', async () => {
+      const response = await request(app)
+        .delete(`/api/outfits/${outfitId}`)
+        .set('Authorization', 'Bearer wrongpassword')
+        .expect(401);
+
+      expect(response.body).toEqual({
+        success: false,
+        error: 'Invalid authentication credentials'
+      });
+    });
+
+    test('should return 404 for non-existent outfit with authentication', async () => {
       const response = await request(app)
         .delete('/api/outfits/non-existent-id')
+        .set('Authorization', 'Bearer admin123')
         .expect(404);
 
       expect(response.body).toEqual({
@@ -429,7 +494,7 @@ describe('Outfit Voting API', () => {
       });
     });
 
-    test('should remove related votes when deleting outfit', async () => {
+    test('should remove related votes when deleting outfit with authentication', async () => {
       // Add a vote for the outfit
       await request(app)
         .post('/api/vote')
@@ -438,9 +503,10 @@ describe('Outfit Voting API', () => {
           userIdentifier: 'voter123'
         });
 
-      // Delete the outfit
+      // Delete the outfit with authentication
       await request(app)
         .delete(`/api/outfits/${outfitId}`)
+        .set('Authorization', 'Bearer admin123')
         .expect(200);
 
       // Create a new outfit and verify that the user can vote again
@@ -536,6 +602,7 @@ describe('Outfit Voting API', () => {
       // 5. Delete an outfit (admin action)
       await request(app)
         .delete(`/api/outfits/${outfit1Response.body.outfit.id}`)
+        .set('Authorization', 'Bearer admin123')
         .expect(200);
 
       // 6. Verify outfit is removed from results

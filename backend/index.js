@@ -48,6 +48,9 @@ app.use(express.json());
 let outfits = [];
 let votes = {};
 
+// Admin configuration
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+
 // Helper function to reset storage (useful for testing)
 function resetStorage() {
     outfits = [];
@@ -62,6 +65,29 @@ if (process.env.NODE_ENV === 'test') {
 // Helper function to get public URL for uploaded file
 function getPublicUrl(fileName) {
     return `https://storage.googleapis.com/${bucketName}/${fileName}`;
+}
+
+// Authentication middleware for admin endpoints
+function authenticateAdmin(req, res, next) {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({
+            success: false,
+            error: 'Authentication required'
+        });
+    }
+    
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    
+    if (token !== ADMIN_PASSWORD) {
+        return res.status(401).json({
+            success: false,
+            error: 'Invalid authentication credentials'
+        });
+    }
+    
+    next();
 }
 
 // Get all outfits
@@ -245,7 +271,7 @@ app.get('/api/results', async (req, res) => {
 });
 
 // Delete an outfit (admin only)
-app.delete('/api/outfits/:id', async (req, res) => {
+app.delete('/api/outfits/:id', authenticateAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         
@@ -297,6 +323,38 @@ app.get('/api/health', (req, res) => {
         message: 'Backend is running',
         timestamp: new Date().toISOString()
     });
+});
+
+// Admin password verification
+app.post('/api/admin/verify-password', async (req, res) => {
+    try {
+        const { password } = req.body;
+        
+        if (!password) {
+            return res.status(400).json({
+                success: false,
+                error: 'Password is required'
+            });
+        }
+        
+        if (password === ADMIN_PASSWORD) {
+            res.json({
+                success: true,
+                message: 'Password verified successfully'
+            });
+        } else {
+            res.status(401).json({
+                success: false,
+                error: 'Invalid password'
+            });
+        }
+    } catch (error) {
+        console.error('Error verifying admin password:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to verify password'
+        });
+    }
 });
 
 // Register the Express app as a Cloud Function
