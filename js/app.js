@@ -68,7 +68,10 @@ class OutfitVotingApp {
                 this.disableUploads();
             }
             
-            if (this.hasUploaded) {
+            // Check unlimited uploads flag
+            const unlimitedUploads = LocalStorage.isUnlimitedUploadsEnabled();
+            
+            if (!unlimitedUploads && this.hasUploaded) {
                 this.showUploadDisabledMessage();
             }
             
@@ -616,7 +619,10 @@ class OutfitVotingApp {
     }
 
     async handleUpload() {
-        if (this.hasUploaded) {
+        // Check unlimited uploads flag first
+        const unlimitedUploads = LocalStorage.isUnlimitedUploadsEnabled();
+        
+        if (!unlimitedUploads && this.hasUploaded) {
             Utils.showMessage('uploadMessage', 'Du kannst nur ein Outfit pro Person hochladen!', 'warning');
             return;
         }
@@ -768,6 +774,9 @@ class OutfitVotingApp {
             // Check for admin setting changes
             await this.checkUserState();
             
+            // Check if user's upload state needs to be reset (in case their outfit was deleted)
+            await this.checkAndResetUploadState();
+            
             // Reload data
             await this.loadData();
             
@@ -782,6 +791,36 @@ class OutfitVotingApp {
             
         } catch (error) {
             console.error('Error refreshing data:', error);
+        }
+    }
+
+    async checkAndResetUploadState() {
+        // If user is marked as uploaded but no outfit exists with their identifier, reset their state
+        if (this.hasUploaded) {
+            const outfits = await CloudStorage.getOutfits();
+            const userIdentifier = await LocalStorage.getUserIdentifier();
+            
+            // Check if any outfit exists with this user's identifier
+            const userOutfit = outfits.find(outfit => outfit.userIdentifier === userIdentifier);
+            
+            if (!userOutfit) {
+                // User is marked as uploaded but no outfit exists - reset their state
+                console.log('User marked as uploaded but no outfit found - resetting upload state');
+                await LocalStorage.resetUserUploadState();
+                this.hasUploaded = false;
+                
+                // Update UI to allow uploading again
+                this.showUploadForm();
+            }
+        }
+    }
+
+    showUploadForm() {
+        if (this.elements.uploadForm) {
+            this.elements.uploadForm.style.display = 'block';
+        }
+        if (this.elements.uploadDisabledMessage) {
+            this.elements.uploadDisabledMessage.style.display = 'none';
         }
     }
 

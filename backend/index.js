@@ -443,7 +443,8 @@ app.delete('/api/outfits/:id', authenticateAdmin, async (req, res) => {
         res.json({
             success: true,
             message: 'Outfit erfolgreich gelöscht',
-            details: `Das Outfit von "${outfit.userName}" wurde entfernt. ${removedVotes.length} Stimmen wurden zurückgesetzt.`
+            details: `Das Outfit von "${outfit.userName}" wurde entfernt. ${removedVotes.length} Stimmen wurden zurückgesetzt.`,
+            deletedUserIdentifier: outfit.userIdentifier // Include userIdentifier for frontend state reset
         });
 
     } catch (error) {
