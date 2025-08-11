@@ -861,6 +861,11 @@ body {
     100% { transform: rotate(360deg); }
 }
 
+/* Rotating animation for icons */
+.rotating {
+    animation: spin 1s linear infinite;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .page {

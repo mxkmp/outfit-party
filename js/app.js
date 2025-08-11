@@ -631,6 +631,12 @@ class OutfitVotingApp {
             return;
         }
 
+        // Disable upload button during upload attempt to prevent double-submission
+        const uploadBtn = this.elements.uploadBtn;
+        const originalText = uploadBtn.innerHTML;
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<span class="material-icons rotating">sync</span> Hochladen...';
+
         Utils.showLoading();
         
         try {
@@ -647,7 +653,7 @@ class OutfitVotingApp {
             // Save outfit to cloud
             const savedOutfit = await CloudStorage.saveOutfit(outfit);
             
-            // Mark user as uploaded
+            // Only mark user as uploaded and disable form on successful cloud upload
             await LocalStorage.markUserAsUploaded();
             this.hasUploaded = true;
             
@@ -666,44 +672,58 @@ class OutfitVotingApp {
         } catch (error) {
             console.error('Error uploading outfit:', error);
             
-            // Show detailed error from backend
+            // Re-enable upload button for retry
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = originalText;
+            
+            // Show detailed error from backend but don't block retry
             Utils.showErrorToast(
-                error.message || 'Fehler beim Hochladen',
-                error.details || 'Das Outfit konnte nicht hochgeladen werden. Bitte versuchen Sie es erneut.'
+                error.message || 'Upload fehlgeschlagen',
+                error.details || 'Das Outfit konnte nicht in die Cloud hochgeladen werden. Sie können es erneut versuchen.'
             );
             
-            // Fallback to local storage if cloud upload fails
-            try {
-                const name = this.elements.userName.value.trim();
-                const file = this.elements.imageFile.files[0];
-                
-                // Resize and compress image for local storage
-                const resizedBlob = await ImageUtils.resizeImage(file);
-                const imageData = await ImageUtils.fileToDataURL(resizedBlob);
-                
-                const outfit = {
-                    name: name,
-                    imageData: imageData,
-                    userIdentifier: this.userIdentifier
-                };
-                
-                const savedOutfit = LocalStorage.saveOutfit(outfit);
-                await LocalStorage.markUserAsUploaded();
-                this.hasUploaded = true;
-                
-                this.resetUploadForm();
-                this.showUploadDisabledMessage();
-                this.navigateToPage('galleryPage');
-                await this.loadData();
-                
-                Utils.showMessage('uploadMessage', 'Outfit lokal gespeichert (Backend nicht verfügbar)', 'warning');
-                
-            } catch (fallbackError) {
-                console.error('Error with fallback upload:', fallbackError);
-                Utils.showErrorToast(
-                    'Upload komplett fehlgeschlagen',
-                    'Das Outfit konnte weder online noch lokal gespeichert werden. Bitte versuchen Sie es später erneut.'
-                );
+            // Check if we have a local copy already saved
+            const localOutfits = LocalStorage.getOutfits();
+            const existingLocalOutfit = localOutfits.find(existing => 
+                existing.name.toLowerCase().trim() === this.elements.userName.value.trim().toLowerCase() &&
+                existing.userIdentifier === this.userIdentifier
+            );
+            
+            // If no local copy exists, create fallback local storage
+            if (!existingLocalOutfit) {
+                try {
+                    const name = this.elements.userName.value.trim();
+                    const file = this.elements.imageFile.files[0];
+                    
+                    // Resize and compress image for local storage
+                    const resizedBlob = await ImageUtils.resizeImage(file);
+                    const imageData = await ImageUtils.fileToDataURL(resizedBlob);
+                    
+                    const outfit = {
+                        name: name,
+                        imageData: imageData,
+                        userIdentifier: this.userIdentifier,
+                        isLocalOnly: true  // Mark as local-only to allow cloud retry
+                    };
+                    
+                    const savedOutfit = LocalStorage.saveOutfit(outfit);
+                    
+                    // Switch to gallery page to show the locally saved outfit
+                    this.navigateToPage('galleryPage');
+                    await this.loadData();
+                    
+                    Utils.showMessage('uploadMessage', 'Outfit lokal gespeichert. Versuchen Sie es später erneut für Cloud-Upload.', 'warning', 6000);
+                    
+                } catch (fallbackError) {
+                    console.error('Error with fallback upload:', fallbackError);
+                    Utils.showErrorToast(
+                        'Upload komplett fehlgeschlagen',
+                        'Das Outfit konnte weder online noch lokal gespeichert werden. Bitte versuchen Sie es später erneut.'
+                    );
+                }
+            } else {
+                // Local copy exists, just show retry message
+                Utils.showMessage('uploadMessage', 'Cloud-Upload fehlgeschlagen. Versuchen Sie es erneut oder Ihr Outfit ist bereits lokal gespeichert.', 'warning', 6000);
             }
         } finally {
             Utils.hideLoading();
