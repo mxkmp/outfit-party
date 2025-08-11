@@ -23,6 +23,9 @@ class OutfitVotingApp {
             this.initializeElements();
             this.setupEventListeners();
             
+            // Update navigation based on event status
+            this.updateNavigationForEventStatus();
+            
             // Load data
             await this.loadData();
             
@@ -60,7 +63,7 @@ class OutfitVotingApp {
             
             // Check admin settings
             if (LocalStorage.isEventEnded()) {
-                this.showEventEndedMessage();
+                console.log('Event has ended - voting and uploads disabled');
                 return;
             }
             
@@ -218,15 +221,53 @@ class OutfitVotingApp {
         this.elements.navItems.forEach(navItem => {
             navItem.addEventListener('click', (e) => {
                 const targetPage = e.currentTarget.getAttribute('data-page');
+                
+                // If event is ended, only allow results page
+                if (LocalStorage.isEventEnded() && targetPage !== 'resultsPage') {
+                    e.preventDefault();
+                    return;
+                }
+                
                 this.navigateToPage(targetPage);
             });
         });
     }
 
-    navigateToAppropriateStartPage() {
-        // Check if event has ended
+    updateNavigationForEventStatus() {
         if (LocalStorage.isEventEnded()) {
-            this.showEventEndedMessage();
+            // Hide upload and gallery nav items, keep only results
+            this.elements.navItems.forEach(navItem => {
+                const targetPage = navItem.getAttribute('data-page');
+                if (targetPage !== 'resultsPage') {
+                    navItem.style.display = 'none';
+                } else {
+                    navItem.style.display = 'flex';
+                }
+            });
+        } else {
+            // Show all nav items
+            this.elements.navItems.forEach(navItem => {
+                navItem.style.display = 'flex';
+            });
+        }
+    }
+
+    updateResultsPageHeader() {
+        const pageHeader = document.querySelector('#resultsPage .page-header h1');
+        if (!pageHeader) return;
+        
+        if (LocalStorage.isEventEnded()) {
+            pageHeader.innerHTML = 'Endergebnis <span class="event-ended-badge">Event beendet</span>';
+        } else {
+            pageHeader.textContent = 'Ranking';
+        }
+    }
+
+    navigateToAppropriateStartPage() {
+        // Check if event has ended - show only the results
+        if (LocalStorage.isEventEnded()) {
+            this.navigateToPage('resultsPage');
+            console.log('Event has ended -> navigating to results page only');
             return;
         }
 
@@ -333,6 +374,9 @@ class OutfitVotingApp {
             // Load initial data for all pages
             await this.loadGallery();
             await this.loadResults();
+            
+            // Update navigation based on event status (in case admin changed it)
+            this.updateNavigationForEventStatus();
             
         } catch (error) {
             console.error('Error loading data:', error);
@@ -443,6 +487,9 @@ class OutfitVotingApp {
             const rankedResults = await CloudStorage.getResults();
             const resultsContainer = this.elements.results;
             const noResults = this.elements.noResults;
+            
+            // Add event ended indicator if the event has ended
+            this.updateResultsPageHeader();
             
             if (rankedResults.length === 0) {
                 if (resultsContainer) resultsContainer.style.display = 'none';
@@ -938,12 +985,6 @@ class OutfitVotingApp {
     disableVoting() {
         // This will be handled in loadGallery() by checking LocalStorage.isVotingEnabled()
         Utils.showMessage('uploadMessage', 'Das Voting ist beendet', 'warning', 0);
-    }
-
-    showEventEndedMessage() {
-        this.elements.votingEndedMessage.style.display = 'flex';
-        this.elements.uploadPage.style.display = 'none';
-        this.stopAutoRefresh();
     }
 }
 
