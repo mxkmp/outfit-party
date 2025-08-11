@@ -154,6 +154,18 @@ body {
     margin: 0;
 }
 
+.event-ended-badge {
+    display: inline-block;
+    background-color: var(--md-sys-color-error-container);
+    color: var(--md-sys-color-on-error-container);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 12px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
 /* Upload Page Styles */
 .upload-container {
     flex: 1;

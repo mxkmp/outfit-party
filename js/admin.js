@@ -338,7 +338,7 @@ class AdminPanel {
 
     confirmEndEvent() {
         this.elements.confirmTitle.textContent = 'Event beenden';
-        this.elements.confirmMessage.textContent = 'Möchtest du das Event wirklich beenden? Alle Uploads und das Voting werden deaktiviert und alle Daten werden gelöscht.';
+        this.elements.confirmMessage.textContent = 'Möchtest du das Event wirklich beenden? Alle Uploads und das Voting werden deaktiviert. Die Voting-Ergebnisse bleiben erhalten.';
         
         this.elements.confirmOk.onclick = () => {
             this.endEvent();
@@ -403,11 +403,8 @@ class AdminPanel {
             settings.votingEnabled = false;
             LocalStorage.saveAdminSettings(settings);
             
-            // Clear all data after a delay to allow final viewing
-            setTimeout(() => {
-                LocalStorage.clearAllData();
-                console.log('Event ended and data cleared');
-            }, 5000);
+            // No data deletion - preserve voting results and outfits
+            console.log('Event ended - voting closed, data preserved');
             
             this.loadDashboardData();
             
