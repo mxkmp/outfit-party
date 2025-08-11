@@ -116,6 +116,9 @@ build/
 *.bak
 *.backup
 
+# Config file (generated during deployment)
+js/config.js
+
 # Local development
 .env.local
 .env.development.local
