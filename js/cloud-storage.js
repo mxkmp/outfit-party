@@ -6,11 +6,9 @@ class BackendAPI {
             this.baseURL = window.APP_CONFIG.BACKEND_URL;
         } else {
             // Update this URL after deploying your Cloud Function
-            // Detect production environment using window.location
-            const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-            this.baseURL = isProduction 
-                ? 'https://europe-west3-personal-468620.cloudfunctions.net/outfit-voting'
-                : 'http://localhost:8080';
+            this.baseURL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                ? 'http://localhost:8080' // Local development fallback
+                : 'https://europe-west3-your-outfit-voting-project.cloudfunctions.net/outfit-voting';
         }
     }
 
@@ -72,12 +70,27 @@ class BackendAPI {
 
     async deleteOutfit(outfitId) {
         return this.makeRequest(`/api/outfits/${outfitId}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${this.adminPassword || ''}`,
+                'Content-Type': 'application/json'
+            }
         });
+    }
+
+    setAdminPassword(password) {
+        this.adminPassword = password;
     }
 
     async healthCheck() {
         return this.makeRequest('/api/health');
+    }
+
+    async verifyAdminPassword(password) {
+        return this.makeRequest('/api/admin/verify-password', {
+            method: 'POST',
+            body: JSON.stringify({ password })
+        });
     }
 }
 
@@ -153,6 +166,18 @@ class CloudStorage {
         } catch (error) {
             console.warn('Backend health check failed:', error);
             return false;
+        }
+    }
+
+    static async verifyAdminPassword(password) {
+        try {
+            const api = new BackendAPI();
+            await api.verifyAdminPassword(password);
+            api.setAdminPassword(password); // Store password for future authenticated requests
+            return { success: true, api };
+        } catch (error) {
+            console.warn('Backend password verification failed:', error);
+            return { success: false, error: error.message };
         }
     }
 }

@@ -51,13 +51,13 @@ class AdminPanel {
 
     setupEventListeners() {
         // Login
-        this.elements.loginBtn.addEventListener('click', () => {
-            this.handleLogin();
+        this.elements.loginBtn.addEventListener('click', async () => {
+            await this.handleLogin();
         });
 
-        this.elements.adminPassword.addEventListener('keypress', (e) => {
+        this.elements.adminPassword.addEventListener('keypress', async (e) => {
             if (e.key === 'Enter') {
-                this.handleLogin();
+                await this.handleLogin();
             }
         });
 
@@ -102,24 +102,50 @@ class AdminPanel {
         }
     }
 
-    handleLogin() {
+    async handleLogin() {
         const password = this.elements.adminPassword.value;
-        const settings = LocalStorage.getAdminSettings();
         
-        if (password === settings.adminPassword) {
-            // Store session for 1 hour
-            Utils.storage.set('adminSession', true, 60);
-            this.showDashboard();
-            this.elements.loginError.classList.remove('show');
-        } else {
-            this.elements.loginError.textContent = 'Falsches Passwort';
-            this.elements.loginError.classList.add('show');
-            this.elements.adminPassword.value = '';
+        // Try backend authentication first
+        try {
+            const backendResult = await CloudStorage.verifyAdminPassword(password);
+            
+            if (backendResult.success) {
+                // Backend authentication successful
+                Utils.storage.set('adminSession', true, 60);
+                Utils.storage.set('adminPassword', password, 60); // Store for backend requests
+                this.backendAPI = backendResult.api; // Store authenticated API instance
+                this.showDashboard();
+                this.elements.loginError.classList.remove('show');
+                console.log('Admin authenticated via backend');
+                return;
+            } else {
+                throw new Error(backendResult.error || 'Backend authentication failed');
+            }
+        } catch (error) {
+            console.warn('Backend authentication failed, falling back to local:', error);
+            
+            // Fallback to local authentication
+            const settings = LocalStorage.getAdminSettings();
+            
+            if (password === settings.adminPassword) {
+                // Store session for 1 hour
+                Utils.storage.set('adminSession', true, 60);
+                Utils.storage.set('adminPassword', password, 60);
+                this.showDashboard();
+                this.elements.loginError.classList.remove('show');
+                console.log('Admin authenticated via local storage fallback');
+            } else {
+                this.elements.loginError.textContent = 'Falsches Passwort';
+                this.elements.loginError.classList.add('show');
+                this.elements.adminPassword.value = '';
+            }
         }
     }
 
     handleLogout() {
         Utils.storage.remove('adminSession');
+        Utils.storage.remove('adminPassword');
+        this.backendAPI = null;
         this.showLogin();
         this.stopAutoRefresh();
     }
@@ -316,11 +342,38 @@ class AdminPanel {
         this.showConfirmDialog();
     }
 
-    deleteOutfit(outfitId) {
+    async deleteOutfit(outfitId) {
         try {
-            LocalStorage.deleteOutfit(outfitId);
+            // Try backend deletion first if we have an authenticated API
+            if (this.backendAPI) {
+                try {
+                    await this.backendAPI.deleteOutfit(outfitId);
+                    console.log(`Outfit ${outfitId} deleted via backend`);
+                } catch (error) {
+                    console.warn('Backend deletion failed, falling back to local:', error);
+                    LocalStorage.deleteOutfit(outfitId);
+                }
+            } else {
+                // Check if we have stored admin password for authentication
+                const storedPassword = Utils.storage.get('adminPassword');
+                if (storedPassword) {
+                    const api = new BackendAPI();
+                    api.setAdminPassword(storedPassword);
+                    try {
+                        await api.deleteOutfit(outfitId);
+                        console.log(`Outfit ${outfitId} deleted via backend with stored password`);
+                    } catch (error) {
+                        console.warn('Backend deletion with stored password failed, falling back to local:', error);
+                        LocalStorage.deleteOutfit(outfitId);
+                    }
+                } else {
+                    // Fallback to local storage
+                    LocalStorage.deleteOutfit(outfitId);
+                    console.log(`Outfit ${outfitId} deleted via local storage fallback`);
+                }
+            }
+            
             this.loadDashboardData();
-            console.log(`Outfit ${outfitId} deleted`);
         } catch (error) {
             console.error('Error deleting outfit:', error);
         }
