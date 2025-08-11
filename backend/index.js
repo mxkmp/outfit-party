@@ -48,6 +48,17 @@ app.use(express.json());
 let outfits = [];
 let votes = {};
 
+// Helper function to reset storage (useful for testing)
+function resetStorage() {
+    outfits = [];
+    votes = {};
+}
+
+// Export reset function for testing
+if (process.env.NODE_ENV === 'test') {
+    module.exports.resetStorage = resetStorage;
+}
+
 // Helper function to get public URL for uploaded file
 function getPublicUrl(fileName) {
     return `https://storage.googleapis.com/${bucketName}/${fileName}`;

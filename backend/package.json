@@ -6,17 +6,27 @@
   "scripts": {
     "start": "node index.js",
     "deploy": "gcloud functions deploy outfit-voting --runtime nodejs18 --trigger http --allow-unauthenticated --memory 256MB --timeout 30s --region europe-west3",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:cloud": "USE_REAL_GCS=true jest --testPathPatterns=cloud",
+    "test:cloud:watch": "USE_REAL_GCS=true jest --watch --testPathPatterns=cloud",
+    "test:local": "jest --testPathPatterns=test.js$",
+    "test:all": "npm run test:local && npm run test:cloud"
   },
   "dependencies": {
     "@google-cloud/functions-framework": "^3.3.0",
     "@google-cloud/storage": "^7.7.0",
     "cors": "^2.8.5",
+    "express": "^4.18.2",
     "multer": "^1.4.5-lts.1",
-    "uuid": "^9.0.1",
-    "express": "^4.18.2"
+    "uuid": "^9.0.1"
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "jest": "^30.0.5",
+    "supertest": "^7.1.4"
   }
 }
