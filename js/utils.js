@@ -35,6 +35,57 @@ class Utils {
         }
     }
 
+    // Show error toast globally
+    static showErrorToast(title, details = null, duration = 8000) {
+        const toast = document.getElementById('errorToast');
+        const titleElement = toast?.querySelector('.error-toast-title');
+        const detailsElement = toast?.querySelector('.error-toast-details');
+        
+        if (!toast || !titleElement || !detailsElement) {
+            console.error('Error toast elements not found');
+            return;
+        }
+
+        // Set content
+        titleElement.textContent = title;
+        if (details) {
+            detailsElement.textContent = details;
+            detailsElement.style.display = 'block';
+        } else {
+            detailsElement.style.display = 'none';
+        }
+
+        // Show toast
+        toast.style.display = 'block';
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+
+        // Auto-hide after duration
+        if (duration > 0) {
+            setTimeout(() => {
+                this.hideErrorToast();
+            }, duration);
+        }
+
+        // Set up close button
+        const closeButton = toast.querySelector('#closeErrorToast');
+        if (closeButton) {
+            closeButton.onclick = () => this.hideErrorToast();
+        }
+    }
+
+    // Hide error toast
+    static hideErrorToast() {
+        const toast = document.getElementById('errorToast');
+        if (!toast) return;
+
+        toast.classList.remove('show');
+        setTimeout(() => {
+            toast.style.display = 'none';
+        }, 300);
+    }
+
     // Hide message
     static hideMessage(elementId) {
         const element = document.getElementById(elementId);

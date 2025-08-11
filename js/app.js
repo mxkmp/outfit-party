@@ -40,7 +40,10 @@ class OutfitVotingApp {
             
         } catch (error) {
             console.error('Error initializing app:', error);
-            Utils.showMessage('uploadMessage', 'Fehler beim Laden der Anwendung', 'error');
+            Utils.showErrorToast(
+                'Fehler beim Laden der Anwendung',
+                error.details || 'Die Anwendung konnte nicht vollständig geladen werden. Bitte laden Sie die Seite neu.'
+            );
         }
     }
 
@@ -330,7 +333,10 @@ class OutfitVotingApp {
             
         } catch (error) {
             console.error('Error loading data:', error);
-            Utils.showMessage('uploadMessage', 'Fehler beim Laden der Daten', 'error');
+            Utils.showErrorToast(
+                'Fehler beim Laden der Daten',
+                error.details || 'Die Daten konnten nicht geladen werden. Bitte aktualisieren Sie die Seite.'
+            );
         } finally {
             Utils.hideLoading();
         }
@@ -440,6 +446,45 @@ class OutfitVotingApp {
                 if (noResults) noResults.style.display = 'flex';
                 return;
             }
+            
+            // Continue with displaying results...
+            if (resultsContainer) resultsContainer.style.display = 'flex';
+            if (noResults) noResults.style.display = 'none';
+            if (resultsContainer) resultsContainer.innerHTML = '';
+
+            const totalVotes = LocalStorage.getTotalVotes();
+
+            rankedResults.forEach((outfit, index) => {
+                const percentage = totalVotes > 0 ? (outfit.votes / totalVotes * 100) : 0;
+                const rank = index + 1;
+                
+                const resultItem = document.createElement('div');
+                resultItem.className = 'result-item fade-in';
+                
+                let rankClass = '';
+                if (rank === 1) rankClass = 'first';
+                else if (rank === 2) rankClass = 'second';
+                else if (rank === 3) rankClass = 'third';
+
+                resultItem.innerHTML = `
+                    <div class="result-item__rank ${rankClass}">
+                        ${rank}
+                    </div>
+                    <div class="result-item__content">
+                        <div class="result-item__name">${Utils.sanitizeHTML(outfit.name)}</div>
+                        <div class="result-item__votes">
+                            ${outfit.votes} ${outfit.votes === 1 ? 'Stimme' : 'Stimmen'} 
+                            (${percentage.toFixed(1)}%)
+                        </div>
+                    </div>
+                    <div class="result-item__bar">
+                        <div class="result-item__bar-fill" style="width: ${percentage}%"></div>
+                    </div>
+                `;
+
+                if (resultsContainer) resultsContainer.appendChild(resultItem);
+            });
+            
         } catch (error) {
             console.error('Error loading results:', error);
             // Fallback to local storage
@@ -452,44 +497,44 @@ class OutfitVotingApp {
                 if (noResults) noResults.style.display = 'flex';
                 return;
             }
-        }
-
-        if (resultsContainer) resultsContainer.style.display = 'flex';
-        if (noResults) noResults.style.display = 'none';
-        if (resultsContainer) resultsContainer.innerHTML = '';
-
-        const totalVotes = LocalStorage.getTotalVotes();
-
-        rankedResults.forEach((outfit, index) => {
-            const percentage = totalVotes > 0 ? (outfit.votes / totalVotes * 100) : 0;
-            const rank = index + 1;
             
-            const resultItem = document.createElement('div');
-            resultItem.className = 'result-item fade-in';
-            
-            let rankClass = '';
-            if (rank === 1) rankClass = 'first';
-            else if (rank === 2) rankClass = 'second';
-            else if (rank === 3) rankClass = 'third';
+            if (resultsContainer) resultsContainer.style.display = 'flex';
+            if (noResults) noResults.style.display = 'none';
+            if (resultsContainer) resultsContainer.innerHTML = '';
 
-            resultItem.innerHTML = `
-                <div class="result-item__rank ${rankClass}">
-                    ${rank}
-                </div>
-                <div class="result-item__content">
-                    <div class="result-item__name">${Utils.sanitizeHTML(outfit.name)}</div>
-                    <div class="result-item__votes">
-                        ${outfit.votes} ${outfit.votes === 1 ? 'Stimme' : 'Stimmen'} 
-                        (${percentage.toFixed(1)}%)
+            const totalVotes = LocalStorage.getTotalVotes();
+
+            rankedResults.forEach((outfit, index) => {
+                const percentage = totalVotes > 0 ? (outfit.votes / totalVotes * 100) : 0;
+                const rank = index + 1;
+                
+                const resultItem = document.createElement('div');
+                resultItem.className = 'result-item fade-in';
+                
+                let rankClass = '';
+                if (rank === 1) rankClass = 'first';
+                else if (rank === 2) rankClass = 'second';
+                else if (rank === 3) rankClass = 'third';
+
+                resultItem.innerHTML = `
+                    <div class="result-item__rank ${rankClass}">
+                        ${rank}
                     </div>
-                </div>
-                <div class="result-item__bar">
-                    <div class="result-item__bar-fill" style="width: ${percentage}%"></div>
-                </div>
-            `;
+                    <div class="result-item__content">
+                        <div class="result-item__name">${Utils.sanitizeHTML(outfit.name)}</div>
+                        <div class="result-item__votes">
+                            ${outfit.votes} ${outfit.votes === 1 ? 'Stimme' : 'Stimmen'} 
+                            (${percentage.toFixed(1)}%)
+                        </div>
+                    </div>
+                    <div class="result-item__bar">
+                        <div class="result-item__bar-fill" style="width: ${percentage}%"></div>
+                    </div>
+                `;
 
-            if (resultsContainer) resultsContainer.appendChild(resultItem);
-        });
+                if (resultsContainer) resultsContainer.appendChild(resultItem);
+            });
+        }
     }
 
     handleFileSelection(file) {
@@ -501,7 +546,10 @@ class OutfitVotingApp {
         // Validate file
         const errors = ImageUtils.validateFile(file);
         if (errors.length > 0) {
-            Utils.showMessage('uploadMessage', errors.join(', '), 'error');
+            Utils.showErrorToast(
+                'Ungültige Datei',
+                errors.join(', ')
+            );
             this.clearFilePreview();
             return;
         }
@@ -521,7 +569,10 @@ class OutfitVotingApp {
             this.elements.filePreview.classList.add('show');
         } catch (error) {
             console.error('Error showing preview:', error);
-            Utils.showMessage('uploadMessage', 'Fehler beim Anzeigen der Vorschau', 'error');
+            Utils.showErrorToast(
+                'Fehler beim Anzeigen der Vorschau',
+                'Das ausgewählte Bild konnte nicht als Vorschau angezeigt werden.'
+            );
         }
     }
 
@@ -615,6 +666,12 @@ class OutfitVotingApp {
         } catch (error) {
             console.error('Error uploading outfit:', error);
             
+            // Show detailed error from backend
+            Utils.showErrorToast(
+                error.message || 'Fehler beim Hochladen',
+                error.details || 'Das Outfit konnte nicht hochgeladen werden. Bitte versuchen Sie es erneut.'
+            );
+            
             // Fallback to local storage if cloud upload fails
             try {
                 const name = this.elements.userName.value.trim();
@@ -643,7 +700,10 @@ class OutfitVotingApp {
                 
             } catch (fallbackError) {
                 console.error('Error with fallback upload:', fallbackError);
-                Utils.showMessage('uploadMessage', 'Fehler beim Hochladen: ' + error.message, 'error');
+                Utils.showErrorToast(
+                    'Upload komplett fehlgeschlagen',
+                    'Das Outfit konnte weder online noch lokal gespeichert werden. Bitte versuchen Sie es später erneut.'
+                );
             }
         } finally {
             Utils.hideLoading();
@@ -692,7 +752,10 @@ class OutfitVotingApp {
             
         } catch (error) {
             console.error('Error voting:', error);
-            Utils.showMessage('uploadMessage', error.message, 'error');
+            Utils.showErrorToast(
+                error.message || 'Fehler beim Abstimmen',
+                error.details || 'Ihre Stimme konnte nicht gezählt werden. Bitte versuchen Sie es erneut.'
+            );
         } finally {
             Utils.hideLoading();
         }

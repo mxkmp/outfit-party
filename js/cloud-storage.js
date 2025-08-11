@@ -27,12 +27,23 @@ class BackendAPI {
             const data = await response.json();
             
             if (!response.ok) {
-                throw new Error(data.error || `HTTP error! status: ${response.status}`);
+                // Create detailed error with backend response
+                const error = new Error(data.error || `HTTP error! status: ${response.status}`);
+                error.details = data.details || null;
+                error.status = response.status;
+                throw error;
             }
             
             return data;
         } catch (error) {
             console.error('API request failed:', error);
+            
+            // If it's a network error (no response), provide better message
+            if (!error.status) {
+                error.message = 'Verbindung zum Server fehlgeschlagen';
+                error.details = 'Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.';
+            }
+            
             throw error;
         }
     }

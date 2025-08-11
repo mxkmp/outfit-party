@@ -10,7 +10,7 @@ const storage = new Storage();
 const bucketName = process.env.BUCKET_NAME || 'your-outfit-voting-project-outfit-images';
 const bucket = storage.bucket(bucketName);
 
-// Configure multer for file uploads
+// Configure multer for file uploads with better error handling
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
@@ -20,7 +20,9 @@ const upload = multer({
         if (file.mimetype.startsWith('image/')) {
             cb(null, true);
         } else {
-            cb(new Error('Only image files are allowed!'), false);
+            const error = new Error(`Ungültiger Dateityp: ${file.mimetype}. Nur Bilddateien (JPG, PNG, GIF) sind erlaubt.`);
+            error.code = 'INVALID_FILE_TYPE';
+            cb(error, false);
         }
     }
 });
@@ -43,6 +45,36 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+// Multer error handling middleware
+app.use((error, req, res, next) => {
+    if (error instanceof multer.MulterError) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({
+                success: false,
+                error: 'Datei zu groß',
+                details: 'Die ausgewählte Datei ist zu groß. Maximale Dateigröße: 10MB'
+            });
+        }
+        if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+            return res.status(400).json({
+                success: false,
+                error: 'Unerwartete Datei',
+                details: 'Es wurde eine unerwartete Datei empfangen. Bitte wählen Sie nur ein Bild aus.'
+            });
+        }
+    }
+    
+    if (error.code === 'INVALID_FILE_TYPE') {
+        return res.status(400).json({
+            success: false,
+            error: 'Ungültiger Dateityp',
+            details: error.message
+        });
+    }
+    
+    next(error);
+});
 
 // In-memory storage for simplicity (use Cloud Firestore in production)
 let outfits = [];
@@ -101,27 +133,65 @@ app.get('/api/outfits', async (req, res) => {
         console.error('Error fetching outfits:', error);
         res.status(500).json({
             success: false,
-            error: 'Failed to fetch outfits'
+            error: 'Fehler beim Laden der Outfits',
+            details: `Die Outfits konnten nicht geladen werden: ${error.message}. Bitte aktualisieren Sie die Seite.`
         });
     }
 });
+
+
 
 // Upload new outfit
 app.post('/api/outfits', upload.single('image'), async (req, res) => {
     try {
         const { userName, userIdentifier } = req.body;
         
+        // Validate required fields
         if (!userName || !userIdentifier) {
             return res.status(400).json({
                 success: false,
-                error: 'User name and identifier are required'
+                error: 'Erforderliche Felder fehlen',
+                details: !userName && !userIdentifier 
+                    ? 'Name und Benutzerkennung sind erforderlich' 
+                    : !userName 
+                        ? 'Name ist erforderlich'
+                        : 'Benutzerkennung ist erforderlich'
+            });
+        }
+
+        // Validate name format
+        const nameValidation = validateUserName(userName);
+        if (!nameValidation.valid) {
+            return res.status(400).json({
+                success: false,
+                error: 'Ungültiger Name',
+                details: nameValidation.errors.join(', ')
             });
         }
 
         if (!req.file) {
             return res.status(400).json({
                 success: false,
-                error: 'Image file is required'
+                error: 'Bild ist erforderlich',
+                details: 'Bitte wählen Sie ein Bild aus (JPG, PNG, GIF - max. 10MB)'
+            });
+        }
+
+        // Validate file type
+        if (!req.file.mimetype.startsWith('image/')) {
+            return res.status(400).json({
+                success: false,
+                error: 'Ungültiger Dateityp',
+                details: `Nur Bilddateien sind erlaubt. Empfangen: ${req.file.mimetype}`
+            });
+        }
+
+        // Validate file size
+        if (req.file.size > 10 * 1024 * 1024) {
+            return res.status(400).json({
+                success: false,
+                error: 'Datei zu groß',
+                details: `Maximale Dateigröße: 10MB. Ihre Datei: ${(req.file.size / 1024 / 1024).toFixed(1)}MB`
             });
         }
 
@@ -130,7 +200,8 @@ app.post('/api/outfits', upload.single('image'), async (req, res) => {
         if (existingOutfit) {
             return res.status(400).json({
                 success: false,
-                error: 'User has already uploaded an outfit'
+                error: 'Bereits hochgeladen',
+                details: 'Du kannst nur ein Outfit pro Person hochladen. Dein Outfit wurde bereits gespeichert.'
             });
         }
 
@@ -141,38 +212,53 @@ app.post('/api/outfits', upload.single('image'), async (req, res) => {
         if (nameExists) {
             return res.status(400).json({
                 success: false,
-                error: 'This name is already taken'
+                error: 'Name bereits vergeben',
+                details: `Der Name "${userName}" wird bereits verwendet. Bitte wählen Sie einen anderen Namen.`
             });
         }
 
         // Generate unique filename
-        const fileExtension = req.file.originalname.split('.').pop();
+        const fileExtension = req.file.originalname.split('.').pop() || 'jpg';
         const fileName = `outfit-${uuidv4()}.${fileExtension}`;
 
-        // Upload to Google Cloud Storage
-        const file = bucket.file(fileName);
-        const stream = file.createWriteStream({
-            metadata: {
-                contentType: req.file.mimetype,
-                cacheControl: 'public, max-age=31536000'
-            }
-        });
+        let imageUrl = '';
+        try {
+            // Upload to Google Cloud Storage
+            const file = bucket.file(fileName);
+            const stream = file.createWriteStream({
+                metadata: {
+                    contentType: req.file.mimetype,
+                    cacheControl: 'public, max-age=31536000'
+                }
+            });
 
-        await new Promise((resolve, reject) => {
-            stream.on('error', reject);
-            stream.on('finish', resolve);
-            stream.end(req.file.buffer);
-        });
+            await new Promise((resolve, reject) => {
+                stream.on('error', (error) => {
+                    console.error('Storage upload error:', error);
+                    reject(new Error(`Fehler beim Hochladen: ${error.message}`));
+                });
+                stream.on('finish', resolve);
+                stream.end(req.file.buffer);
+            });
 
-        // Make file publicly readable
-        await file.makePublic();
+            // Make file publicly readable
+            await file.makePublic();
+            imageUrl = getPublicUrl(fileName);
+        } catch (uploadError) {
+            console.error('Error uploading to cloud storage:', uploadError);
+            return res.status(500).json({
+                success: false,
+                error: 'Upload fehlgeschlagen',
+                details: `Fehler beim Speichern des Bildes: ${uploadError.message}. Bitte versuchen Sie es erneut.`
+            });
+        }
 
         // Create outfit object
         const outfit = {
             id: uuidv4(),
             userName: userName.trim(),
             userIdentifier,
-            imageUrl: getPublicUrl(fileName),
+            imageUrl,
             fileName,
             uploadedAt: new Date().toISOString(),
             votes: 0
@@ -189,28 +275,64 @@ app.post('/api/outfits', upload.single('image'), async (req, res) => {
         console.error('Error uploading outfit:', error);
         res.status(500).json({
             success: false,
-            error: 'Failed to upload outfit'
+            error: 'Server-Fehler',
+            details: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}. Bitte versuchen Sie es später erneut.`
         });
     }
 });
+
+// Helper function to validate user name
+function validateUserName(name) {
+    const errors = [];
+    
+    if (!name || typeof name !== 'string') {
+        errors.push('Name ist erforderlich');
+        return { valid: false, errors };
+    }
+    
+    const trimmedName = name.trim();
+    
+    if (trimmedName.length < 2) {
+        errors.push('Name muss mindestens 2 Zeichen haben');
+    }
+    
+    if (trimmedName.length > 50) {
+        errors.push('Name darf maximal 50 Zeichen haben');
+    }
+    
+    if (!/^[a-zA-ZäöüÄÖÜß\s\-\.0-9]+$/.test(trimmedName)) {
+        errors.push('Name darf nur Buchstaben, Zahlen, Leerzeichen, Bindestriche und Punkte enthalten');
+    }
+    
+    return { valid: errors.length === 0, errors };
+}
 
 // Vote for an outfit
 app.post('/api/vote', async (req, res) => {
     try {
         const { outfitId, userIdentifier } = req.body;
 
+        // Validate required fields
         if (!outfitId || !userIdentifier) {
             return res.status(400).json({
                 success: false,
-                error: 'Outfit ID and user identifier are required'
+                error: 'Erforderliche Felder fehlen',
+                details: !outfitId && !userIdentifier 
+                    ? 'Outfit-ID und Benutzerkennung sind erforderlich' 
+                    : !outfitId 
+                        ? 'Outfit-ID ist erforderlich'
+                        : 'Benutzerkennung ist erforderlich'
             });
         }
 
         // Check if user already voted
         if (votes[userIdentifier]) {
+            const votedOutfit = outfits.find(o => o.id === votes[userIdentifier]);
+            const votedName = votedOutfit ? votedOutfit.userName : 'unbekannt';
             return res.status(400).json({
                 success: false,
-                error: 'User has already voted'
+                error: 'Bereits abgestimmt',
+                details: `Du hast bereits für "${votedName}" abgestimmt. Pro Person ist nur eine Stimme erlaubt.`
             });
         }
 
@@ -219,15 +341,19 @@ app.post('/api/vote', async (req, res) => {
         if (outfitIndex === -1) {
             return res.status(404).json({
                 success: false,
-                error: 'Outfit not found'
+                error: 'Outfit nicht gefunden',
+                details: 'Das gewählte Outfit existiert nicht mehr oder wurde gelöscht.'
             });
         }
 
+        const targetOutfit = outfits[outfitIndex];
+
         // Check if user is voting for their own outfit
-        if (outfits[outfitIndex].userIdentifier === userIdentifier) {
+        if (targetOutfit.userIdentifier === userIdentifier) {
             return res.status(400).json({
                 success: false,
-                error: 'Cannot vote for your own outfit'
+                error: 'Selbstabstimmung nicht erlaubt',
+                details: 'Du kannst nicht für dein eigenes Outfit abstimmen. Wähle ein anderes Outfit aus.'
             });
         }
 
@@ -237,14 +363,16 @@ app.post('/api/vote', async (req, res) => {
 
         res.json({
             success: true,
-            message: 'Vote recorded successfully'
+            message: 'Stimme erfolgreich abgegeben',
+            details: `Deine Stimme für "${targetOutfit.userName}" wurde gezählt!`
         });
 
     } catch (error) {
         console.error('Error recording vote:', error);
         res.status(500).json({
             success: false,
-            error: 'Failed to record vote'
+            error: 'Server-Fehler',
+            details: `Fehler beim Speichern der Stimme: ${error.message}. Bitte versuchen Sie es erneut.`
         });
     }
 });
@@ -265,7 +393,8 @@ app.get('/api/results', async (req, res) => {
         console.error('Error fetching results:', error);
         res.status(500).json({
             success: false,
-            error: 'Failed to fetch results'
+            error: 'Fehler beim Laden der Ergebnisse',
+            details: `Die Voting-Ergebnisse konnten nicht geladen werden: ${error.message}. Bitte aktualisieren Sie die Seite.`
         });
     }
 });
@@ -275,11 +404,20 @@ app.delete('/api/outfits/:id', authenticateAdmin, async (req, res) => {
     try {
         const { id } = req.params;
         
+        if (!id) {
+            return res.status(400).json({
+                success: false,
+                error: 'Outfit-ID erforderlich',
+                details: 'Die Outfit-ID muss angegeben werden.'
+            });
+        }
+        
         const outfitIndex = outfits.findIndex(outfit => outfit.id === id);
         if (outfitIndex === -1) {
             return res.status(404).json({
                 success: false,
-                error: 'Outfit not found'
+                error: 'Outfit nicht gefunden',
+                details: 'Das zu löschende Outfit existiert nicht oder wurde bereits entfernt.'
             });
         }
 
@@ -288,41 +426,52 @@ app.delete('/api/outfits/:id', authenticateAdmin, async (req, res) => {
         // Delete from Google Cloud Storage
         try {
             await bucket.file(outfit.fileName).delete();
-        } catch (error) {
-            console.warn('Error deleting file from storage:', error);
+        } catch (storageError) {
+            console.warn('Error deleting file from storage:', storageError);
+            // Continue with deletion even if storage deletion fails
         }
 
         // Remove from memory
         outfits.splice(outfitIndex, 1);
 
         // Remove related votes
-        Object.keys(votes).forEach(userIdentifier => {
-            if (votes[userIdentifier] === id) {
-                delete votes[userIdentifier];
-            }
+        const removedVotes = Object.keys(votes).filter(userIdentifier => votes[userIdentifier] === id);
+        removedVotes.forEach(userIdentifier => {
+            delete votes[userIdentifier];
         });
 
         res.json({
             success: true,
-            message: 'Outfit deleted successfully'
+            message: 'Outfit erfolgreich gelöscht',
+            details: `Das Outfit von "${outfit.userName}" wurde entfernt. ${removedVotes.length} Stimmen wurden zurückgesetzt.`
         });
 
     } catch (error) {
         console.error('Error deleting outfit:', error);
         res.status(500).json({
             success: false,
-            error: 'Failed to delete outfit'
+            error: 'Fehler beim Löschen',
+            details: `Das Outfit konnte nicht gelöscht werden: ${error.message}. Bitte versuchen Sie es erneut.`
         });
     }
 });
 
 // Health check
 app.get('/api/health', (req, res) => {
-    res.json({
-        success: true,
-        message: 'Backend is running',
-        timestamp: new Date().toISOString()
-    });
+    try {
+        res.json({
+            success: true,
+            message: 'Backend läuft',
+            details: `Server ist aktiv. Zeitstempel: ${new Date().toISOString()}`,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: 'Health-Check fehlgeschlagen',
+            details: error.message
+        });
+    }
 });
 
 // Admin password verification
@@ -333,26 +482,30 @@ app.post('/api/admin/verify-password', async (req, res) => {
         if (!password) {
             return res.status(400).json({
                 success: false,
-                error: 'Password is required'
+                error: 'Passwort erforderlich',
+                details: 'Bitte geben Sie das Admin-Passwort ein.'
             });
         }
         
         if (password === ADMIN_PASSWORD) {
             res.json({
                 success: true,
-                message: 'Password verified successfully'
+                message: 'Passwort korrekt',
+                details: 'Sie wurden erfolgreich als Administrator angemeldet.'
             });
         } else {
             res.status(401).json({
                 success: false,
-                error: 'Invalid password'
+                error: 'Falsches Passwort',
+                details: 'Das eingegebene Passwort ist nicht korrekt. Bitte versuchen Sie es erneut.'
             });
         }
     } catch (error) {
         console.error('Error verifying admin password:', error);
         res.status(500).json({
             success: false,
-            error: 'Failed to verify password'
+            error: 'Fehler bei der Passwort-Überprüfung',
+            details: `Die Passwort-Überprüfung ist fehlgeschlagen: ${error.message}. Bitte versuchen Sie es später erneut.`
         });
     }
 });
