@@ -102,7 +102,7 @@ jobs:
       id: get-url
       run: |
         echo "Getting function URL..."
-        FUNCTION_URL=$(gcloud functions describe outfit-voting --region=europe-west3 --format="value(httpsTrigger.url)" 2>/dev/null || echo "")
+        FUNCTION_URL=$(gcloud functions describe outfit-voting --region=europe-west3 --format="value(url)" 2>/dev/null || echo "")
         if [ -z "$FUNCTION_URL" ]; then
           echo "❌ Failed to get function URL"
           exit 1
