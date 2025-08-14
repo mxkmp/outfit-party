@@ -73,6 +73,15 @@ app.use((error, req, res, next) => {
         });
     }
     
+    // Handle busboy multipart parsing errors (e.g., "Unexpected end of form")
+    if (error.message && error.message.includes('Unexpected end of form')) {
+        return res.status(400).json({
+            success: false,
+            error: 'Upload-Fehler',
+            details: 'Die Datei konnte nicht vollständig übertragen werden. Bitte versuchen Sie es erneut.'
+        });
+    }
+    
     next(error);
 });
 
@@ -142,7 +151,25 @@ app.get('/api/outfits', async (req, res) => {
 
 
 // Upload new outfit
-app.post('/api/outfits', upload.single('image'), async (req, res) => {
+app.post('/api/outfits', (req, res, next) => {
+    // Use custom error handling for multer middleware
+    upload.single('image')(req, res, (err) => {
+        if (err) {
+            // Handle specific multer/busboy errors
+            if (err.message && err.message.includes('Unexpected end of form')) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Upload-Fehler',
+                    details: 'Die Datei konnte nicht vollständig übertragen werden. Bitte versuchen Sie es erneut.'
+                });
+            }
+            // Pass other errors to the general error handler
+            return next(err);
+        }
+        // Continue to the actual route handler
+        next();
+    });
+}, async (req, res) => {
     try {
         const { userName, userIdentifier } = req.body;
         
