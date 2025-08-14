@@ -174,6 +174,9 @@ body {
     justify-content: center;
     padding: var(--spacing-lg);
     min-height: calc(100vh - 200px); /* Ensure proper centering on full viewport */
+    /* Ensure content is always visible even on very tall screens */
+    max-height: calc(100vh - 80px); /* Account for bottom navigation */
+    overflow-y: auto;
 }
 
 .upload-card {
@@ -902,6 +905,7 @@ body {
     .upload-container {
         padding: var(--spacing-md);
         min-height: calc(100vh - 180px);
+        max-height: calc(100vh - 80px); /* Account for bottom nav */
     }
     
     .upload-card {
@@ -936,12 +940,18 @@ body {
     .upload-container {
         padding: var(--spacing-sm);
         min-height: calc(100vh - 160px);
+        max-height: calc(100vh - 80px); /* Ensure full view on tall screens like S20 Ultra */
+        /* On very tall screens, ensure content doesn't get cut off */
+        align-items: flex-start;
+        padding-top: var(--spacing-md);
     }
     
     .upload-card {
         padding: var(--spacing-md);
         max-width: none;
         margin: 0;
+        /* Add some breathing room for tall screens */
+        margin-bottom: var(--spacing-lg);
     }
     
     .file-preview img {
@@ -968,6 +978,24 @@ body {
     
     .nav-label {
         font-size: 11px;
+    }
+}
+
+/* Special handling for very tall screens like Galaxy S20 Ultra */
+@media (max-width: 480px) and (min-height: 800px) {
+    .upload-container {
+        /* On very tall screens, start from top instead of centering */
+        align-items: flex-start;
+        padding-top: var(--spacing-xl);
+        min-height: auto;
+        max-height: calc(100vh - 80px);
+    }
+    
+    .upload-card {
+        /* Ensure card fits comfortably on tall screens */
+        margin-bottom: var(--spacing-xxl);
+        max-height: calc(100vh - 160px);
+        overflow-y: auto;
     }
 }
 
